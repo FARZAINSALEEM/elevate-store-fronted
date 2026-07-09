@@ -1,0 +1,15 @@
+Python
+
+pycache/
+*.py[cod]
+*$py.class
+*.env
+.env
+venv/
+env/
+db.sqlite3
+
+Media/Static files
+
+media/
+staticfiles/
