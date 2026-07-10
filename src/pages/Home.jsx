@@ -95,7 +95,7 @@ const Home = () => {
         ) : products.length === 0 ? (
           <div className="text-center py-20 text-neutral-400 border border-neutral-800 rounded-3xl p-10 bg-neutral-900/50">
             <p className="text-xl">No products available.</p>
-            <p className="mt-2 text-neutral-500">Log into your Django Admin panel at <code className="text-indigo-400">127.0.0.1:8000/admin</code> to add some items!</p>
+            <p className="mt-2 text-neutral-500">Log into the Admin Portal to add some items to your store!</p>
           </div>
         ) : (
           <motion.div 
