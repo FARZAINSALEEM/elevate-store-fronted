@@ -2,9 +2,9 @@ import React, { useState, useContext } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate, Link } from 'react-router-dom';
 import { CheckCircle, Truck, CreditCard, User, MapPin, Phone, FileText, ArrowLeft, AlertCircle } from 'lucide-react';
-import { CartContext } from '../context/CartContext';
-import { AuthContext } from '../context/AuthContext';
-import api from '../services/api';
+import { CartContext } from '../context/CartContext.jsx';
+import { AuthContext } from '../context/AuthContext.jsx';
+import api from '../services/api.js';
 
 const Checkout = () => {
   const { cartItems, cartTotal, clearCart } = useContext(CartContext);
@@ -19,6 +19,7 @@ const Checkout = () => {
     paymentMethod: 'COD'
   });
   
+  const [screenshot, setScreenshot] = useState(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [receipt, setReceipt] = useState(null);
   const [errorMsg, setErrorMsg] = useState('');
@@ -36,20 +37,29 @@ const Checkout = () => {
       return;
     }
 
+    if (formData.paymentMethod === 'ONLINE' && !screenshot) {
+      setErrorMsg("Please upload a payment screenshot to verify your online payment.");
+      return;
+    }
+
     setIsProcessing(true);
     setErrorMsg('');
 
-    const orderData = {
-      items: cartItems.map(item => ({ id: item.id, quantity: item.quantity, price: item.price })),
-      total_price: cartTotal,
-      shipping_address: formData.address,
-      phone_number: formData.phone,
-      cnic: formData.cnic,
-      payment_method: formData.paymentMethod
-    };
+    // Switch to FormData to allow Image Uploading
+    const formDataToSend = new FormData();
+    formDataToSend.append('items', JSON.stringify(cartItems.map(item => ({ id: item.id, quantity: item.quantity, price: item.price }))));
+    formDataToSend.append('total_price', cartTotal);
+    formDataToSend.append('shipping_address', formData.address);
+    formDataToSend.append('phone_number', formData.phone);
+    formDataToSend.append('cnic', formData.cnic);
+    formDataToSend.append('payment_method', formData.paymentMethod);
+    
+    if (screenshot) {
+      formDataToSend.append('payment_screenshot', screenshot);
+    }
 
     try {
-      const response = await api.post('/orders/', orderData);
+      const response = await api.post('/orders/', formDataToSend, { headers: { 'Content-Type': 'multipart/form-data' }});
       setReceipt(response.data);
       clearCart();
     } catch (error) {
@@ -86,7 +96,7 @@ const Checkout = () => {
             </div>
             <div className="flex justify-between border-b border-neutral-800 pb-2">
               <span className="text-neutral-500">Total Paid:</span>
-              <span className="font-bold text-lg text-white">${parseFloat(receipt.total_price).toFixed(2)}</span>
+              <span className="font-bold text-lg text-white">Rs. {parseFloat(receipt.total_price).toFixed(2)}</span>
             </div>
             <div className="pt-2">
               <span className="text-neutral-500 block mb-1">Items:</span>
@@ -149,18 +159,34 @@ const Checkout = () => {
               {/* Payment Options */}
               <div className="pt-4 border-t border-neutral-800">
                 <h3 className="font-semibold mb-4 text-lg">Payment Method</h3>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-2 gap-4 mb-4">
                   <button type="button" onClick={() => setFormData({...formData, paymentMethod: 'COD'})} className={`flex items-center justify-center gap-2 py-3 rounded-xl border transition-all ${formData.paymentMethod === 'COD' ? 'bg-indigo-600/20 border-indigo-500 text-indigo-400' : 'bg-black/50 border-neutral-800 text-neutral-400 hover:border-neutral-600'}`}>
-                    <Truck size={20} /> COD
+                    <Truck size={20} /> Cash on Delivery
                   </button>
-                  <button type="button" onClick={() => setFormData({...formData, paymentMethod: 'CARD'})} className={`flex items-center justify-center gap-2 py-3 rounded-xl border transition-all ${formData.paymentMethod === 'CARD' ? 'bg-indigo-600/20 border-indigo-500 text-indigo-400' : 'bg-black/50 border-neutral-800 text-neutral-400 hover:border-neutral-600'}`}>
-                    <CreditCard size={20} /> Card
+                  <button type="button" onClick={() => setFormData({...formData, paymentMethod: 'ONLINE'})} className={`flex items-center justify-center gap-2 py-3 rounded-xl border transition-all ${formData.paymentMethod === 'ONLINE' ? 'bg-indigo-600/20 border-indigo-500 text-indigo-400' : 'bg-black/50 border-neutral-800 text-neutral-400 hover:border-neutral-600'}`}>
+                    <CreditCard size={20} /> Online (JazzCash/EasyPaisa)
                   </button>
                 </div>
+
+                {formData.paymentMethod === 'ONLINE' && (
+                  <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} className="bg-indigo-900/20 border border-indigo-500/30 p-5 rounded-xl space-y-4">
+                    <div>
+                      <p className="text-sm text-neutral-400 mb-1">Please transfer the total amount to one of the following accounts:</p>
+                      <p className="font-bold text-white">JazzCash: <span className="text-amber-400 tracking-wider">0300-1234567</span> (Farzain Saleem)</p>
+                      <p className="font-bold text-white">EasyPaisa: <span className="text-green-400 tracking-wider">0345-1234567</span> (Farzain Saleem)</p>
+                    </div>
+                    <div>
+                      <label className="block text-sm text-neutral-400 mb-2">Upload Payment Screenshot *</label>
+                      <input required type="file" accept="image/*" onChange={(e) => setScreenshot(e.target.files[0])} className="w-full bg-black/50 border border-neutral-800 rounded-lg px-4 py-2 text-sm file:mr-4 file:py-1 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-500/10 file:text-indigo-400 hover:file:bg-indigo-500/20 text-white" />
+                    </div>
+                  </motion.div>
+                )}
               </div>
 
+              <p className="text-xs text-neutral-500 text-center mt-4">Delivery charges apply as per Bykea/inDrive rider rates at the time of dispatch.</p>
+
               <button disabled={isProcessing} type="submit" className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-4 rounded-xl mt-6 shadow-[0_0_20px_rgba(79,70,229,0.3)] transition-all">
-                {isProcessing ? 'Processing Order...' : `Place Order - $${parseFloat(cartTotal).toFixed(2)}`}
+                {isProcessing ? 'Processing Order...' : `Place Order - Rs. ${parseFloat(cartTotal).toFixed(2)}`}
               </button>
             </form>
           </motion.div>
@@ -175,18 +201,13 @@ const Checkout = () => {
                     <div className="w-12 h-12 bg-neutral-800 rounded-lg overflow-hidden flex-shrink-0">
                        {item.image && <img src={item.image} alt={item.name} className="w-full h-full object-cover" />}
                     </div>
-                    <div>
-                      <p className="font-medium text-white">{item.name}</p>
-                      <p className="text-neutral-500">Qty: {item.quantity}</p>
-                    </div>
-                  </div>
-                  <span className="font-semibold">${(item.price * item.quantity).toFixed(2)}</span>
+                  <span className="font-semibold">Rs. {(item.price * item.quantity).toFixed(2)}</span>
                 </div>
               ))}
             </div>
             <div className="flex justify-between items-center text-lg">
               <span className="font-medium text-neutral-400">Total to Pay</span>
-              <span className="font-bold text-2xl text-white">${parseFloat(cartTotal).toFixed(2)}</span>
+              <span className="font-bold text-2xl text-white">Rs. {parseFloat(cartTotal).toFixed(2)}</span>
             </div>
           </motion.div>
 
