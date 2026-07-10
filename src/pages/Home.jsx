@@ -39,6 +39,16 @@ const Home = () => {
     show: { opacity: 1, y: 0 }
   };
 
+  // Helper function to ensure image URLs point to the backend, not the Vercel frontend
+  const getImageUrl = (imagePath) => {
+    if (!imagePath) return null;
+    if (imagePath.startsWith('http')) return imagePath;
+    
+    // Get the base backend URL by stripping '/api' from the VITE_API_URL
+    const baseUrl = (import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000/api/').split('/api')[0];
+    return `${baseUrl}${imagePath.startsWith('/') ? '' : '/'}${imagePath}`;
+  };
+
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-white">
       {/* Hero Section */}
@@ -116,7 +126,7 @@ const Home = () => {
                 <Link to={`/product/${product.id}`} className="block relative z-0 h-48 mb-4 overflow-hidden rounded-xl bg-neutral-800 flex items-center justify-center flex-shrink-0">
                   {product.image ? (
                     <img 
-                      src={product.image} 
+                      src={getImageUrl(product.image)} 
                       alt={product.name} 
                       className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                     />
