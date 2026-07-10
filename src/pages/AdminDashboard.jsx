@@ -18,6 +18,14 @@ const AdminDashboard = () => {
   const [showAddForm, setShowAddForm] = useState(false);
   const [newProduct, setNewProduct] = useState({ name: '', price: '', stock: '', description: '', image: null });
 
+  // Helper function to ensure image URLs point to the backend
+  const getImageUrl = (imagePath) => {
+    if (!imagePath) return null;
+    if (imagePath.startsWith('http')) return imagePath;
+    const baseUrl = (import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000/api/').split('/api')[0];
+    return `${baseUrl}${imagePath.startsWith('/') ? '' : '/'}${imagePath}`;
+  };
+
   useEffect(() => {
     if (!user?.is_staff) {
       navigate('/admin-login');
@@ -184,7 +192,7 @@ const AdminDashboard = () => {
                     products.map(product => (
                       <tr key={product.id} className="border-b border-neutral-800/50 hover:bg-neutral-800/20 transition">
                         <td className="py-2 px-4">
-                          {product.image ? <img src={product.image} alt={product.name} className="w-10 h-10 object-cover rounded-md" /> : <div className="w-10 h-10 bg-neutral-800 rounded-md flex items-center justify-center text-xs text-neutral-500">No Img</div>}
+                          {product.image ? <img src={getImageUrl(product.image)} alt={product.name} className="w-10 h-10 object-cover rounded-md" /> : <div className="w-10 h-10 bg-neutral-800 rounded-md flex items-center justify-center text-xs text-neutral-500">No Img</div>}
                         </td>
                         <td className="py-4 px-4 font-medium">{product.name}</td>
                         <td className="py-4 px-4">${parseFloat(product.price).toFixed(2)}</td>
