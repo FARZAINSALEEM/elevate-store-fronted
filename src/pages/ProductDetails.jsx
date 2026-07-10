@@ -13,6 +13,14 @@ const ProductDetails = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
+  // Helper function to ensure image URLs point to the backend
+  const getImageUrl = (imagePath) => {
+    if (!imagePath) return null;
+    if (imagePath.startsWith('http')) return imagePath;
+    const baseUrl = (import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000/api/').split('/api')[0];
+    return `${baseUrl}${imagePath.startsWith('/') ? '' : '/'}${imagePath}`;
+  };
+
   useEffect(() => {
     const fetchProduct = async () => {
       try {
@@ -65,7 +73,7 @@ const ProductDetails = () => {
             <div className="aspect-square bg-neutral-900 rounded-3xl overflow-hidden border border-neutral-800 relative group flex items-center justify-center">
               {product.image ? (
                 <img 
-                  src={product.image} 
+                  src={getImageUrl(product.image)} 
                   alt={product.name} 
                   className="w-full h-full object-cover transform group-hover:scale-105 transition-transform duration-500"
                 />
