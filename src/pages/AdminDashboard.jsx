@@ -16,7 +16,7 @@ const AdminDashboard = () => {
   const [stats, setStats] = useState(null);
   
   const [showAddForm, setShowAddForm] = useState(false);
-  const [newProduct, setNewProduct] = useState({ name: '', price: '', stock: '', description: '', image: null });
+  const [newProduct, setNewProduct] = useState({ name: '', price: '', stock: '', description: '', image: null, rating: 4.5, warranty: '1 Year Warranty', return_time: '30-Day Returns' });
 
   // Helper function to ensure image URLs point to the backend
   const getImageUrl = (imagePath) => {
@@ -56,16 +56,33 @@ const AdminDashboard = () => {
     formData.append('price', newProduct.price);
     formData.append('stock', newProduct.stock);
     formData.append('description', newProduct.description);
+    formData.append('rating', newProduct.rating);
+    formData.append('warranty', newProduct.warranty);
+    formData.append('return_time', newProduct.return_time);
     if (newProduct.image) formData.append('image', newProduct.image);
 
     try {
       await api.post('/products/', formData, { headers: { 'Content-Type': 'multipart/form-data' }});
-      setNewProduct({ name: '', price: '', stock: '', description: '', image: null });
+      setNewProduct({ name: '', price: '', stock: '', description: '', image: null, rating: 4.5, warranty: '1 Year Warranty', return_time: '30-Day Returns' });
       setShowAddForm(false);
       fetchData();
     } catch (error) {
       console.error("Error adding product:", error);
-      alert("Failed to add product.");
+      // Catch unique name errors thrown by Django
+      if (error.response?.data?.name) {
+          alert("Error: A product with this exact name already exists. Names must be unique.");
+      } else {
+          alert("Failed to add product.");
+      }
+    }
+  };
+
+  const handleUpdateOrderStatus = async (id, status) => {
+    try {
+        await api.patch(`/orders/${id}/`, { status });
+        fetchData();
+    } catch (error) {
+        console.error("Error updating order:", error);
     }
   };
 
@@ -121,7 +138,7 @@ const AdminDashboard = () => {
               <div className="p-4 bg-green-500/10 text-green-500 rounded-xl"><DollarSign size={24} /></div>
               <div>
                 <p className="text-neutral-400 text-sm">Total Revenue</p>
-                <p className="text-2xl font-bold">${stats.total_sales}</p>
+                <p className="text-2xl font-bold">Rs. {stats.total_sales}</p>
               </div>
             </div>
             <div className="bg-neutral-900 border border-neutral-800 p-6 rounded-2xl flex items-center gap-4">
@@ -163,11 +180,14 @@ const AdminDashboard = () => {
 
             {showAddForm && (
               <motion.form initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} className="bg-black/50 p-6 rounded-2xl border border-neutral-800 mb-8 space-y-4 print:hidden" onSubmit={handleAddProduct}>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   <input required type="text" placeholder="Product Name" className="bg-neutral-900 border border-neutral-700 rounded-lg px-4 py-2 focus:border-amber-500 outline-none" value={newProduct.name} onChange={e => setNewProduct({...newProduct, name: e.target.value})} />
-                  <input required type="number" step="0.01" placeholder="Price ($)" className="bg-neutral-900 border border-neutral-700 rounded-lg px-4 py-2 focus:border-amber-500 outline-none" value={newProduct.price} onChange={e => setNewProduct({...newProduct, price: e.target.value})} />
+                  <input required type="number" step="0.01" placeholder="Price (Rs.)" className="bg-neutral-900 border border-neutral-700 rounded-lg px-4 py-2 focus:border-amber-500 outline-none" value={newProduct.price} onChange={e => setNewProduct({...newProduct, price: e.target.value})} />
                   <input required type="number" placeholder="Initial Stock" className="bg-neutral-900 border border-neutral-700 rounded-lg px-4 py-2 focus:border-amber-500 outline-none" value={newProduct.stock} onChange={e => setNewProduct({...newProduct, stock: e.target.value})} />
-                  <input type="file" accept="image/*" className="bg-neutral-900 border border-neutral-700 rounded-lg px-4 py-1.5 focus:border-amber-500 outline-none text-sm file:mr-4 file:py-1 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-amber-500/10 file:text-amber-500 hover:file:bg-amber-500/20" onChange={e => setNewProduct({...newProduct, image: e.target.files[0]})} />
+                  <input required type="number" step="0.1" placeholder="Rating (e.g. 4.5)" className="bg-neutral-900 border border-neutral-700 rounded-lg px-4 py-2 focus:border-amber-500 outline-none" value={newProduct.rating} onChange={e => setNewProduct({...newProduct, rating: e.target.value})} />
+                  <input required type="text" placeholder="Warranty (e.g. 1 Year)" className="bg-neutral-900 border border-neutral-700 rounded-lg px-4 py-2 focus:border-amber-500 outline-none" value={newProduct.warranty} onChange={e => setNewProduct({...newProduct, warranty: e.target.value})} />
+                  <input required type="text" placeholder="Return Time (e.g. 7 Days)" className="bg-neutral-900 border border-neutral-700 rounded-lg px-4 py-2 focus:border-amber-500 outline-none" value={newProduct.return_time} onChange={e => setNewProduct({...newProduct, return_time: e.target.value})} />
+                  <input type="file" accept="image/*" className="bg-neutral-900 border border-neutral-700 rounded-lg px-4 py-1.5 focus:border-amber-500 outline-none text-sm file:mr-4 file:py-1 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-amber-500/10 file:text-amber-500 hover:file:bg-amber-500/20 col-span-1 md:col-span-2 lg:col-span-3" onChange={e => setNewProduct({...newProduct, image: e.target.files[0]})} />
                 </div>
                 <textarea placeholder="Product Description" className="w-full bg-neutral-900 border border-neutral-700 rounded-lg px-4 py-2 focus:border-amber-500 outline-none h-24" value={newProduct.description} onChange={e => setNewProduct({...newProduct, description: e.target.value})} />
                 <button type="submit" className="bg-white text-black font-bold px-6 py-2 rounded-lg hover:bg-neutral-200 transition">Save Product</button>
@@ -195,7 +215,7 @@ const AdminDashboard = () => {
                           {product.image ? <img src={getImageUrl(product.image)} alt={product.name} className="w-10 h-10 object-cover rounded-md" /> : <div className="w-10 h-10 bg-neutral-800 rounded-md flex items-center justify-center text-xs text-neutral-500">No Img</div>}
                         </td>
                         <td className="py-4 px-4 font-medium">{product.name}</td>
-                        <td className="py-4 px-4">${parseFloat(product.price).toFixed(2)}</td>
+                        <td className="py-4 px-4">Rs. {parseFloat(product.price).toFixed(2)}</td>
                         <td className="py-4 px-4">
                           <div className="flex items-center gap-3">
                             <button onClick={() => handleUpdateStock(product.id, product.stock, -1)} className="p-1 text-neutral-400 hover:text-white bg-neutral-800 rounded transition print:hidden"><Minus size={14} /></button>
@@ -247,9 +267,39 @@ const AdminDashboard = () => {
                           <p className="text-neutral-500 mb-1">Delivery Details:</p>
                           <p className="text-neutral-400 whitespace-pre-wrap">{order.shipping_address || 'No address provided'}</p>
                           <p className="font-medium text-amber-400 mt-2 flex items-center gap-1">
-                            {order.payment_method === 'COD' ? <><Truck size={14} /> Cash on Delivery</> : 'Credit Card'}
+                            {order.payment_method === 'COD' ? <><Truck size={14} /> Cash on Delivery</> : 'Online Payment'}
                           </p>
+                          {order.payment_method === 'ONLINE' && order.payment_screenshot && (
+                              <div className="mt-3">
+                                  <p className="text-neutral-500 mb-1 text-xs">Payment Proof:</p>
+                                  <a href={getImageUrl(order.payment_screenshot)} target="_blank" rel="noreferrer">
+                                      <img src={getImageUrl(order.payment_screenshot)} alt="Payment Proof" className="w-24 h-auto rounded border border-neutral-700 hover:border-indigo-500 transition cursor-pointer" />
+                                  </a>
+                                  {order.status === 'Pending' && (
+                                      <div className="flex gap-2 mt-2">
+                                          <button onClick={() => handleUpdateOrderStatus(order.id, 'Processing')} className="px-3 py-1 bg-green-600/20 text-green-500 rounded hover:bg-green-600/40 text-xs font-bold transition">Approve</button>
+                                          <button onClick={() => handleUpdateOrderStatus(order.id, 'Payment Rejected')} className="px-3 py-1 bg-red-600/20 text-red-500 rounded hover:bg-red-600/40 text-xs font-bold transition">Reject</button>
+                                      </div>
+                                  )}
+                              </div>
+                          )}
                         </div>
+                      </div>
+                    </div>
+
+                    {/* Order Items & Total */}
+                    <div className="lg:w-1/3 bg-neutral-900 rounded-xl p-4 border border-neutral-800 flex flex-col justify-between">
+                      <div className="space-y-3 mb-4 max-h-40 overflow-y-auto custom-scrollbar pr-2">
+                        {order.items?.map((item, idx) => (
+                          <div key={idx} className="flex justify-between text-sm">
+                            <span className="text-neutral-300">{item.quantity}x {item.product_name || `Item #${item.product}`}</span>
+                            <span className="text-white">Rs. {(item.price * item.quantity).toFixed(2)}</span>
+                          </div>
+                        ))}
+                      </div>
+                      <div className="flex justify-between items-center border-t border-neutral-700 pt-3 text-lg font-bold">
+                        <span>Total:</span>
+                        <span className="text-green-400">Rs. {parseFloat(order.total_price).toFixed(2)}</span>
                       </div>
                     </div>
 
