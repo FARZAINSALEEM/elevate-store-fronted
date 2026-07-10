@@ -147,7 +147,7 @@ const Home = () => {
                   </div>
                   
                   <div className="flex items-center justify-between mt-auto pt-4">
-                    <span className="text-xl font-bold text-white">${parseFloat(product.price).toFixed(2)}</span>
+                    <span className="text-xl font-bold text-white">Rs. {parseFloat(product.price).toFixed(2)}</span>
                     <motion.button 
                       whileHover={{ scale: 1.1 }}
                       whileTap={{ scale: 0.9 }}
