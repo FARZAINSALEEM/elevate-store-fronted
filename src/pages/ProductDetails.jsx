@@ -98,13 +98,13 @@ const ProductDetails = () => {
             <div className="flex items-center gap-4 mb-6">
               <div className="flex items-center gap-1 bg-neutral-900 px-3 py-1.5 rounded-full border border-neutral-800">
                 <Star size={16} className="text-yellow-500 fill-yellow-500" />
-                <span className="font-bold">4.8</span>
+                <span className="font-bold">{product.rating || "4.5"}</span>
               </div>
               <span className="text-neutral-400 text-sm">{product.stock} in stock</span>
             </div>
 
             <div className="text-3xl font-bold text-white mb-6">
-              ${parseFloat(product.price).toFixed(2)}
+              Rs. {parseFloat(product.price).toFixed(2)}
             </div>
 
             <p className="text-neutral-400 text-lg mb-8 leading-relaxed whitespace-pre-wrap">
@@ -135,8 +135,9 @@ const ProductDetails = () => {
                 </button>
                 <span className="w-12 text-center font-bold text-lg">{quantity}</span>
                 <button 
-                  onClick={() => setQuantity(quantity + 1)}
-                  className="w-12 h-full flex items-center justify-center text-neutral-400 hover:text-white hover:bg-neutral-800 rounded-lg transition-colors"
+                  onClick={() => setQuantity(Math.min(product.stock, quantity + 1))}
+                  disabled={quantity >= product.stock}
+                  className="w-12 h-full flex items-center justify-center text-neutral-400 hover:text-white hover:bg-neutral-800 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <Plus size={18} />
                 </button>
@@ -157,15 +158,15 @@ const ProductDetails = () => {
             <div className="grid grid-cols-3 gap-4 mt-8 pt-8 border-t border-neutral-800 text-center">
               <div className="flex flex-col items-center gap-2 text-neutral-400">
                 <Truck size={24} className="text-indigo-400" />
-                <span className="text-xs">Free Shipping</span>
+                <span className="text-xs">Delivery via Bykea/inDrive</span>
               </div>
               <div className="flex flex-col items-center gap-2 text-neutral-400">
                 <Shield size={24} className="text-indigo-400" />
-                <span className="text-xs">1 Year Warranty</span>
+                <span className="text-xs">{product.warranty || "1 Year Warranty"}</span>
               </div>
               <div className="flex flex-col items-center gap-2 text-neutral-400">
                 <RotateCcw size={24} className="text-indigo-400" />
-                <span className="text-xs">30-Day Returns</span>
+                <span className="text-xs">{product.return_time || "30-Day Returns"}</span>
               </div>
             </div>
 
