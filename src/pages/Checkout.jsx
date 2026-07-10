@@ -103,7 +103,7 @@ const Checkout = () => {
               {receipt.items?.map((item, idx) => (
                 <div key={idx} className="flex justify-between text-neutral-300">
                   <span>{item.quantity}x {item.product_name || `Product ID: ${item.product}`}</span>
-                  <span>${(item.price * item.quantity).toFixed(2)}</span>
+                  <span>Rs. {(item.price * item.quantity).toFixed(2)}</span>
                 </div>
               ))}
             </div>
@@ -201,6 +201,8 @@ const Checkout = () => {
                     <div className="w-12 h-12 bg-neutral-800 rounded-lg overflow-hidden flex-shrink-0">
                        {item.image && <img src={item.image} alt={item.name} className="w-full h-full object-cover" />}
                     </div>
+                    <span className="text-neutral-300">{item.name} x {item.quantity}</span>
+                  </div>
                   <span className="font-semibold">Rs. {(item.price * item.quantity).toFixed(2)}</span>
                 </div>
               ))}
