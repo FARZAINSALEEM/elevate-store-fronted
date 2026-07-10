@@ -1,218 +1,159 @@
-import React, { useState, useContext } from 'react';
+import React, { useState, useContext, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { useNavigate, Link } from 'react-router-dom';
-import { CheckCircle, Truck, CreditCard, User, MapPin, Phone, FileText, ArrowLeft, AlertCircle } from 'lucide-react';
-import { CartContext } from '../context/CartContext.jsx';
-import { AuthContext } from '../context/AuthContext.jsx';
-import api from '../services/api.js';
+import { useNavigate } from 'react-router-dom';
+import { CheckCircle, AlertCircle, MapPin, Phone, CreditCard, Upload } from 'lucide-react';
+import { CartContext } from '../context/CartContext';
+import { AuthContext } from '../context/AuthContext';
+import api from '../services/api';
 
 const Checkout = () => {
   const { cartItems, cartTotal, clearCart } = useContext(CartContext);
   const { user } = useContext(AuthContext);
   const navigate = useNavigate();
-
-  const [formData, setFormData] = useState({
-    fullName: user?.username || '',
-    address: '',
-    phone: '',
-    cnic: '',
-    paymentMethod: 'COD'
-  });
   
+  const [formData, setFormData] = useState({
+    shipping_address: '', phone_number: '', cnic: '', payment_method: 'COD'
+  });
   const [screenshot, setScreenshot] = useState(null);
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [receipt, setReceipt] = useState(null);
-  const [errorMsg, setErrorMsg] = useState('');
+  const [settings, setSettings] = useState({ jazzcash_number: 'Loading...', easypaisa_number: 'Loading...' });
+  const [status, setStatus] = useState({ loading: false, error: null, success: false });
 
-  if (cartItems.length === 0 && !receipt) {
-    navigate('/cart');
-    return null;
-  }
+  useEffect(() => {
+    if (!user) navigate('/login');
+    // Fetch dynamic store settings from backend
+    api.get('/settings/').then(res => setSettings(res.data)).catch(err => console.error(err));
+  }, [user, navigate]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
-    if (!user) {
-      navigate('/login');
-      return;
-    }
-
-    if (formData.paymentMethod === 'ONLINE' && !screenshot) {
-      setErrorMsg("Please upload a payment screenshot to verify your online payment.");
-      return;
-    }
-
-    setIsProcessing(true);
-    setErrorMsg('');
-
-    // Switch to FormData to allow Image Uploading
-    const formDataToSend = new FormData();
-    formDataToSend.append('items', JSON.stringify(cartItems.map(item => ({ id: item.id, quantity: item.quantity, price: item.price }))));
-    formDataToSend.append('total_price', cartTotal);
-    formDataToSend.append('shipping_address', formData.address);
-    formDataToSend.append('phone_number', formData.phone);
-    formDataToSend.append('cnic', formData.cnic);
-    formDataToSend.append('payment_method', formData.paymentMethod);
-    
-    if (screenshot) {
-      formDataToSend.append('payment_screenshot', screenshot);
-    }
+    if (cartItems.length === 0) return;
+    setStatus({ loading: true, error: null, success: false });
 
     try {
-      const response = await api.post('/orders/', formDataToSend, { headers: { 'Content-Type': 'multipart/form-data' }});
-      setReceipt(response.data);
+      const orderData = new FormData();
+      orderData.append('shipping_address', formData.shipping_address);
+      orderData.append('phone_number', formData.phone_number);
+      orderData.append('cnic', formData.cnic);
+      orderData.append('payment_method', formData.payment_method);
+      orderData.append('total_price', cartTotal);
+      
+      const itemsFormatted = cartItems.map(item => ({
+        product: item.id, quantity: item.quantity, price: item.price
+      }));
+      orderData.append('items', JSON.stringify(itemsFormatted));
+
+      if (formData.payment_method === 'ONLINE' && screenshot) {
+        orderData.append('payment_screenshot', screenshot);
+      }
+
+      await api.post('/orders/', orderData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      
+      setStatus({ loading: false, error: null, success: true });
       clearCart();
-    } catch (error) {
-      console.error("Order failed:", error);
-      setErrorMsg(error.response?.data?.error || "Payment failed. Please try again.");
-    } finally {
-      setIsProcessing(false);
+      setTimeout(() => navigate('/profile'), 2000); // Redirect to Profile/Tracking
+    } catch (err) {
+      setStatus({ loading: false, error: err.response?.data?.error || 'Failed to place order. Check stock.', success: false });
     }
   };
 
-  if (receipt) {
+  if (status.success) {
     return (
-      <div className="min-h-screen bg-[#050505] text-white pt-24 pb-12 px-4 flex justify-center items-center">
-        <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-neutral-900 border border-indigo-500/30 p-8 rounded-3xl max-w-lg w-full shadow-[0_0_40px_rgba(79,70,229,0.15)] relative overflow-hidden">
-          <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-indigo-500 to-purple-500"></div>
-          <div className="text-center mb-8">
-            <CheckCircle size={60} className="text-green-500 mx-auto mb-4" />
-            <h2 className="text-3xl font-black mb-2">Order Confirmed!</h2>
-            <p className="text-neutral-400">Thank you for your purchase.</p>
+      <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center p-4">
+        <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-neutral-900 border border-neutral-800 p-10 rounded-3xl text-center max-w-md w-full shadow-2xl">
+          <div className="w-20 h-20 bg-green-500/20 rounded-full flex items-center justify-center mx-auto mb-6">
+            <CheckCircle size={40} className="text-green-500" />
           </div>
-          
-          <div className="bg-black/50 rounded-2xl p-6 border border-neutral-800 space-y-4 mb-8 text-sm">
-            <div className="flex justify-between border-b border-neutral-800 pb-2">
-              <span className="text-neutral-500">Order ID:</span>
-              <span className="font-bold text-indigo-400">#{receipt.id}</span>
-            </div>
-            <div className="flex justify-between border-b border-neutral-800 pb-2">
-              <span className="text-neutral-500">Payment Method:</span>
-              <span className="font-medium">{receipt.payment_method === 'COD' ? 'Cash on Delivery' : 'Credit Card'}</span>
-            </div>
-            <div className="flex justify-between border-b border-neutral-800 pb-2">
-              <span className="text-neutral-500">Customer:</span>
-              <span className="font-medium text-right">{formData.fullName}<br/>{formData.phone}</span>
-            </div>
-            <div className="flex justify-between border-b border-neutral-800 pb-2">
-              <span className="text-neutral-500">Total Paid:</span>
-              <span className="font-bold text-lg text-white">Rs. {parseFloat(receipt.total_price).toFixed(2)}</span>
-            </div>
-            <div className="pt-2">
-              <span className="text-neutral-500 block mb-1">Items:</span>
-              {receipt.items?.map((item, idx) => (
-                <div key={idx} className="flex justify-between text-neutral-300">
-                  <span>{item.quantity}x {item.product_name || `Product ID: ${item.product}`}</span>
-                  <span>Rs. {(item.price * item.quantity).toFixed(2)}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-          
-          <Link to="/">
-            <button className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3 rounded-xl transition">
-              Continue Shopping
-            </button>
-          </Link>
+          <h2 className="text-3xl font-bold text-white mb-2">Order Placed!</h2>
+          <p className="text-neutral-400 mb-6">Your order is now pending. You can track it in your profile.</p>
         </motion.div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[#050505] text-white pt-24 pb-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-4xl mx-auto">
-        <Link to="/cart" className="inline-flex items-center text-neutral-400 hover:text-white mb-8 transition-colors">
-          <ArrowLeft size={20} className="mr-2" /> Back to Cart
-        </Link>
+    <div className="min-h-screen bg-[#0a0a0a] text-white pt-24 pb-12 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-10">
         
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+        <div>
+          <h1 className="text-3xl font-bold mb-8">Checkout Details</h1>
+          {status.error && (
+            <div className="mb-6 p-4 bg-red-500/10 border border-red-500/50 rounded-xl text-red-400 flex items-center gap-2">
+              <AlertCircle size={20} /> {status.error}
+            </div>
+          )}
           
-          {/* Checkout Form */}
-          <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }}>
-            <h2 className="text-3xl font-bold mb-6">Delivery Details</h2>
-            
-            {errorMsg && (
-              <div className="mb-6 p-4 bg-red-500/10 border border-red-500/50 rounded-xl text-red-400 flex items-center gap-3">
-                <AlertCircle size={20} /> {errorMsg}
-              </div>
-            )}
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <div className="bg-neutral-900/50 p-6 rounded-2xl border border-neutral-800 space-y-4">
+              <h2 className="text-xl font-semibold mb-4 flex items-center gap-2"><MapPin className="text-indigo-500"/> Delivery Info</h2>
+              <textarea required placeholder="Full Shipping Address" className="w-full bg-black border border-neutral-800 rounded-xl p-4 text-white focus:border-indigo-500 focus:outline-none" onChange={e => setFormData({...formData, shipping_address: e.target.value})} />
+              <input required type="text" placeholder="Phone Number" className="w-full bg-black border border-neutral-800 rounded-xl p-4 text-white focus:border-indigo-500 focus:outline-none" onChange={e => setFormData({...formData, phone_number: e.target.value})} />
+              <input type="text" placeholder="CNIC (Optional)" className="w-full bg-black border border-neutral-800 rounded-xl p-4 text-white focus:border-indigo-500 focus:outline-none" onChange={e => setFormData({...formData, cnic: e.target.value})} />
+            </div>
 
-            <form onSubmit={handleSubmit} className="space-y-5 bg-neutral-900/50 p-6 rounded-3xl border border-neutral-800">
-              <div className="relative">
-                <User className="absolute top-3 left-4 text-neutral-500" size={20} />
-                <input required type="text" placeholder="Full Name" value={formData.fullName} onChange={e => setFormData({...formData, fullName: e.target.value})} className="w-full bg-black/50 border border-neutral-800 rounded-xl pl-12 pr-4 py-3 text-white focus:outline-none focus:border-indigo-500" />
-              </div>
-              <div className="relative">
-                <Phone className="absolute top-3 left-4 text-neutral-500" size={20} />
-                <input required type="tel" placeholder="Phone Number" value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} className="w-full bg-black/50 border border-neutral-800 rounded-xl pl-12 pr-4 py-3 text-white focus:outline-none focus:border-indigo-500" />
-              </div>
-              <div className="relative">
-                <FileText className="absolute top-3 left-4 text-neutral-500" size={20} />
-                <input required type="text" placeholder="CNIC Number (e.g., 42101-1234567-1)" value={formData.cnic} onChange={e => setFormData({...formData, cnic: e.target.value})} className="w-full bg-black/50 border border-neutral-800 rounded-xl pl-12 pr-4 py-3 text-white focus:outline-none focus:border-indigo-500" />
-              </div>
-              <div className="relative">
-                <MapPin className="absolute top-3 left-4 text-neutral-500" size={20} />
-                <textarea required placeholder="Full Shipping Address" value={formData.address} onChange={e => setFormData({...formData, address: e.target.value})} className="w-full bg-black/50 border border-neutral-800 rounded-xl pl-12 pr-4 py-3 text-white focus:outline-none focus:border-indigo-500 h-24"></textarea>
+            <div className="bg-neutral-900/50 p-6 rounded-2xl border border-neutral-800 space-y-4">
+              <h2 className="text-xl font-semibold mb-4 flex items-center gap-2"><CreditCard className="text-indigo-500"/> Payment Method</h2>
+              
+              <div className="flex gap-4">
+                <label className={`flex-1 border p-4 rounded-xl cursor-pointer transition-all ${formData.payment_method === 'COD' ? 'border-indigo-500 bg-indigo-500/10' : 'border-neutral-800 hover:border-neutral-700'}`}>
+                  <input type="radio" name="payment" value="COD" checked={formData.payment_method === 'COD'} onChange={() => setFormData({...formData, payment_method: 'COD'})} className="hidden" />
+                  <span className="font-semibold block text-center">Cash on Delivery</span>
+                </label>
+                <label className={`flex-1 border p-4 rounded-xl cursor-pointer transition-all ${formData.payment_method === 'ONLINE' ? 'border-indigo-500 bg-indigo-500/10' : 'border-neutral-800 hover:border-neutral-700'}`}>
+                  <input type="radio" name="payment" value="ONLINE" checked={formData.payment_method === 'ONLINE'} onChange={() => setFormData({...formData, payment_method: 'ONLINE'})} className="hidden" />
+                  <span className="font-semibold block text-center">Online Payment</span>
+                </label>
               </div>
 
-              {/* Payment Options */}
-              <div className="pt-4 border-t border-neutral-800">
-                <h3 className="font-semibold mb-4 text-lg">Payment Method</h3>
-                <div className="grid grid-cols-2 gap-4 mb-4">
-                  <button type="button" onClick={() => setFormData({...formData, paymentMethod: 'COD'})} className={`flex items-center justify-center gap-2 py-3 rounded-xl border transition-all ${formData.paymentMethod === 'COD' ? 'bg-indigo-600/20 border-indigo-500 text-indigo-400' : 'bg-black/50 border-neutral-800 text-neutral-400 hover:border-neutral-600'}`}>
-                    <Truck size={20} /> Cash on Delivery
-                  </button>
-                  <button type="button" onClick={() => setFormData({...formData, paymentMethod: 'ONLINE'})} className={`flex items-center justify-center gap-2 py-3 rounded-xl border transition-all ${formData.paymentMethod === 'ONLINE' ? 'bg-indigo-600/20 border-indigo-500 text-indigo-400' : 'bg-black/50 border-neutral-800 text-neutral-400 hover:border-neutral-600'}`}>
-                    <CreditCard size={20} /> Online (JazzCash/EasyPaisa)
-                  </button>
-                </div>
-
-                {formData.paymentMethod === 'ONLINE' && (
-                  <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} className="bg-indigo-900/20 border border-indigo-500/30 p-5 rounded-xl space-y-4">
-                    <div>
-                      <p className="text-sm text-neutral-400 mb-1">Please transfer the total amount to one of the following accounts:</p>
-                      <p className="font-bold text-white">JazzCash: <span className="text-amber-400 tracking-wider">0300-1234567</span> (Farzain Saleem)</p>
-                      <p className="font-bold text-white">EasyPaisa: <span className="text-green-400 tracking-wider">0345-1234567</span> (Farzain Saleem)</p>
-                    </div>
-                    <div>
-                      <label className="block text-sm text-neutral-400 mb-2">Upload Payment Screenshot *</label>
-                      <input required type="file" accept="image/*" onChange={(e) => setScreenshot(e.target.files[0])} className="w-full bg-black/50 border border-neutral-800 rounded-lg px-4 py-2 text-sm file:mr-4 file:py-1 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-500/10 file:text-indigo-400 hover:file:bg-indigo-500/20 text-white" />
-                    </div>
-                  </motion.div>
-                )}
-              </div>
-
-              <p className="text-xs text-neutral-500 text-center mt-4">Delivery charges apply as per Bykea/inDrive rider rates at the time of dispatch.</p>
-
-              <button disabled={isProcessing} type="submit" className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-4 rounded-xl mt-6 shadow-[0_0_20px_rgba(79,70,229,0.3)] transition-all">
-                {isProcessing ? 'Processing Order...' : `Place Order - Rs. ${parseFloat(cartTotal).toFixed(2)}`}
-              </button>
-            </form>
-          </motion.div>
-
-          {/* Order Summary */}
-          <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="bg-neutral-900/80 backdrop-blur-xl border border-neutral-800 rounded-3xl p-6 h-fit sticky top-24">
-            <h2 className="text-2xl font-bold mb-6">Order Summary</h2>
-            <div className="space-y-4 max-h-60 overflow-y-auto custom-scrollbar pr-2 mb-6 border-b border-neutral-800 pb-4">
-              {cartItems.map((item) => (
-                <div key={item.id} className="flex justify-between items-center text-sm">
-                  <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 bg-neutral-800 rounded-lg overflow-hidden flex-shrink-0">
-                       {item.image && <img src={item.image} alt={item.name} className="w-full h-full object-cover" />}
-                    </div>
-                    <span className="text-neutral-300">{item.name} x {item.quantity}</span>
+              {formData.payment_method === 'ONLINE' && (
+                <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} className="mt-4 p-4 bg-black rounded-xl border border-neutral-800">
+                  <p className="text-sm text-neutral-400 mb-2">Please transfer the amount to one of the following accounts and upload the receipt:</p>
+                  <div className="flex flex-col gap-2 mb-4 font-mono text-sm text-indigo-300">
+                    <div className="bg-neutral-900 p-2 rounded">JazzCash: {settings.jazzcash_number}</div>
+                    <div className="bg-neutral-900 p-2 rounded">EasyPaisa: {settings.easypaisa_number}</div>
                   </div>
-                  <span className="font-semibold">Rs. {(item.price * item.quantity).toFixed(2)}</span>
+                  <label className="flex items-center justify-center gap-2 w-full border-2 border-dashed border-neutral-700 p-6 rounded-xl hover:border-indigo-500 cursor-pointer transition-colors">
+                    <Upload size={20} className="text-neutral-500" />
+                    <span className="text-neutral-400">{screenshot ? screenshot.name : 'Upload Screenshot (Required)'}</span>
+                    <input type="file" required accept="image/*" className="hidden" onChange={(e) => setScreenshot(e.target.files[0])} />
+                  </label>
+                </motion.div>
+              )}
+            </div>
+
+            <button type="submit" disabled={status.loading} className="w-full bg-indigo-600 hover:bg-indigo-500 text-white py-4 rounded-xl font-bold transition-all shadow-[0_0_20px_rgba(99,102,241,0.3)]">
+              {status.loading ? 'Processing...' : `Place Order (Rs. ${cartTotal.toFixed(2)})`}
+            </button>
+          </form>
+        </div>
+
+        <div>
+          <div className="bg-neutral-900/80 p-6 rounded-3xl border border-neutral-800 sticky top-24">
+            <h2 className="text-2xl font-bold mb-6">Order Summary</h2>
+            <div className="space-y-4 mb-6 border-b border-neutral-800 pb-6 max-h-96 overflow-y-auto custom-scrollbar">
+              {cartItems.map(item => (
+                <div key={item.id} className="flex justify-between items-center bg-black/30 p-3 rounded-lg">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 bg-neutral-800 rounded flex-shrink-0"><img src={item.image} alt="" className="w-full h-full object-cover rounded"/></div>
+                    <div>
+                      <p className="font-semibold text-sm line-clamp-1">{item.name}</p>
+                      <p className="text-xs text-neutral-400">Qty: {item.quantity}</p>
+                    </div>
+                  </div>
+                  <span className="font-bold text-sm">Rs. {(item.price * item.quantity).toFixed(2)}</span>
                 </div>
               ))}
             </div>
-            <div className="flex justify-between items-center text-lg">
-              <span className="font-medium text-neutral-400">Total to Pay</span>
-              <span className="font-bold text-2xl text-white">Rs. {parseFloat(cartTotal).toFixed(2)}</span>
+            <div className="flex justify-between items-center text-neutral-400 mb-2 text-sm">
+              <span>Delivery</span>
+              <span className="text-amber-400 font-medium">Charges as per Bykea/inDrive</span>
             </div>
-          </motion.div>
-
+            <div className="flex justify-between items-center">
+              <span className="text-xl font-medium">Total</span>
+              <span className="text-3xl font-bold text-indigo-400">Rs. {cartTotal.toFixed(2)}</span>
+            </div>
+          </div>
         </div>
       </div>
     </div>
