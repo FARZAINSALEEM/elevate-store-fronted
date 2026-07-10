@@ -7,6 +7,7 @@ import { CartContext, CartProvider } from './context/CartContext';
 // Pages
 import Home from './pages/Home';
 import Login from './pages/Login';
+import Profile from './pages/Profile'; // <--- NEW PROFILE PAGE
 import ProductDetails from './pages/ProductDetails';
 import Cart from './pages/Cart';
 import Checkout from './pages/Checkout';
@@ -18,7 +19,6 @@ const Navbar = () => {
   const cartItemsCount = cartContext?.cartItems?.length || 0;
   const location = useLocation();
   
-  // Hide navbar on admin pages
   if (location.pathname.includes('admin')) return null;
 
   return (
@@ -33,7 +33,7 @@ const Navbar = () => {
             <ShoppingCart size={22} />
             {cartItemsCount > 0 && <span className="absolute -top-2 -right-2 bg-indigo-600 text-white text-[10px] font-bold w-5 h-5 rounded-full flex items-center justify-center">{cartItemsCount}</span>}
           </Link>
-          <Link to="/login" className="text-neutral-400 hover:text-white transition-colors"><User size={22} /></Link>
+          <Link to="/profile" className="text-neutral-400 hover:text-indigo-400 transition-colors" title="My Profile & Orders"><User size={22} /></Link>
         </div>
       </div>
     </nav>
@@ -49,6 +49,7 @@ const App = () => {
           <Routes>
             <Route path="/" element={<Home />} />
             <Route path="/login" element={<Login />} />
+            <Route path="/profile" element={<Profile />} />
             <Route path="/product/:id" element={<ProductDetails />} />
             <Route path="/cart" element={<Cart />} />
             <Route path="/checkout" element={<Checkout />} />
