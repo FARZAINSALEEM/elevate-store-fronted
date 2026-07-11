@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { 
   LogOut, Plus, Trash2, Package, DollarSign, AlertTriangle, 
   MessageCircle, Settings, ShoppingBag, X, Send, CheckCircle, 
-  Truck, Download, Search, User
+  Truck, Download, Search, UserCircle, Minus
 } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { AuthContext } from '../context/AuthContext';
@@ -94,6 +94,18 @@ const AdminDashboard = () => {
     } catch (error) {
       console.error("Error updating order:", error);
       alert("Failed to update order status.");
+    }
+  };
+
+  const handleUpdateStock = async (id, currentStock, change) => {
+    const newStock = currentStock + change;
+    if (newStock < 0) return;
+    try {
+      await api.patch(`/products/${id}/`, { stock: newStock });
+      // Update UI instantly
+      setProducts(products.map(p => p.id === id ? { ...p, stock: newStock } : p));
+    } catch (error) {
+      console.error("Error updating stock:", error);
     }
   };
 
@@ -360,9 +372,17 @@ const AdminDashboard = () => {
                         </td>
                         <td className="p-5 font-medium text-white whitespace-nowrap">Rs. {product.price}</td>
                         <td className="p-5">
-                          <span className={`px-3 py-1.5 rounded-lg text-xs font-bold border whitespace-nowrap ${product.stock > 5 ? 'bg-green-500/10 text-green-400 border-green-500/20' : 'bg-red-500/10 text-red-400 border-red-500/20'}`}>
-                            {product.stock} in stock
-                          </span>
+                          <div className="flex items-center gap-2">
+                            <button onClick={() => handleUpdateStock(product.id, product.stock, -1)} className="p-1 bg-neutral-800 hover:bg-neutral-700 rounded text-neutral-400 hover:text-white transition">
+                              <Minus size={14} />
+                            </button>
+                            <span className={`px-3 py-1.5 rounded-lg text-xs font-bold border whitespace-nowrap ${product.stock > 5 ? 'bg-green-500/10 text-green-400 border-green-500/20' : 'bg-red-500/10 text-red-400 border-red-500/20'}`}>
+                              {product.stock} in stock
+                            </span>
+                            <button onClick={() => handleUpdateStock(product.id, product.stock, 1)} className="p-1 bg-neutral-800 hover:bg-neutral-700 rounded text-neutral-400 hover:text-white transition">
+                              <Plus size={14} />
+                            </button>
+                          </div>
                         </td>
                         <td className="p-5 text-right">
                           <button onClick={() => handleDeleteProduct(product.id)} className="text-red-400 hover:text-white bg-red-500/10 hover:bg-red-500 p-2.5 rounded-lg transition-colors border border-red-500/20">
@@ -492,7 +512,7 @@ const AdminDashboard = () => {
                   <div key={chat.ticket_id} className="bg-black border border-neutral-800 rounded-2xl overflow-hidden flex flex-col h-[450px] shadow-lg">
                     <div className="bg-blue-600/10 p-5 border-b border-blue-900/30 flex justify-between items-center">
                       <div>
-                        <h3 className="font-bold text-blue-400 flex items-center gap-2"><User size={16}/> Customer: {chat.user}</h3>
+                        <h3 className="font-bold text-blue-400 flex items-center gap-2"><UserCircle size={16}/> Customer: {chat.user}</h3>
                         <p className="text-xs text-neutral-500 mt-1">Ticket #{chat.ticket_id} • Active</p>
                       </div>
                       <span className="text-xs bg-black/50 text-neutral-400 px-3 py-1 rounded-full border border-neutral-800">{chat.last_updated}</span>
