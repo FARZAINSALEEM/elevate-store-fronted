@@ -13,6 +13,7 @@ import Cart from './pages/Cart';
 import Checkout from './pages/Checkout';
 import AdminLogin from './pages/AdminLogin';
 import AdminDashboard from './pages/AdminDashboard';
+import HelpDeskChat from './components/HelpDeskChat'; // <--- NEW IMPORT
 
 const Navbar = () => {
   const cartContext = React.useContext(CartContext);
@@ -57,6 +58,10 @@ const App = () => {
             <Route path="/admin-dashboard" element={<AdminDashboard />} />
           </Routes>
         </main>
+        
+        {/* Floating Help Desk Chat globally available except for admin routes */}
+        {!window.location.pathname.includes('admin') && <HelpDeskChat />}
+        
       </CartProvider>
     </AuthProvider>
   );
