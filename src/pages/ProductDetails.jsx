@@ -13,7 +13,6 @@ const ProductDetails = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  // Helper function to ensure image URLs point to the backend
   const getImageUrl = (imagePath) => {
     if (!imagePath) return null;
     if (imagePath.startsWith('http')) return imagePath;
@@ -28,7 +27,6 @@ const ProductDetails = () => {
         setProduct(data);
       } catch (err) {
         setError('Failed to fetch product details.');
-        console.error(err);
       } finally {
         setLoading(false);
       }
@@ -64,12 +62,7 @@ const ProductDetails = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-12 lg:gap-20">
           
           {/* Image Section */}
-          <motion.div 
-            initial={{ opacity: 0, x: -30 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.6 }}
-            className="relative"
-          >
+          <motion.div initial={{ opacity: 0, x: -30 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.6 }} className="relative">
             <div className="aspect-square bg-neutral-900 rounded-3xl overflow-hidden border border-neutral-800 relative group flex items-center justify-center">
               {product.image ? (
                 <img 
@@ -84,12 +77,7 @@ const ProductDetails = () => {
           </motion.div>
 
           {/* Details Section */}
-          <motion.div 
-            initial={{ opacity: 0, x: 30 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.6, delay: 0.2 }}
-            className="flex flex-col justify-center"
-          >
+          <motion.div initial={{ opacity: 0, x: 30 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.6, delay: 0.2 }} className="flex flex-col justify-center">
             <div className="mb-2 text-indigo-400 font-semibold tracking-wide uppercase text-sm">
               Product
             </div>
@@ -100,7 +88,9 @@ const ProductDetails = () => {
                 <Star size={16} className="text-yellow-500 fill-yellow-500" />
                 <span className="font-bold">{product.rating || "4.5"}</span>
               </div>
-              <span className="text-neutral-400 text-sm">{product.stock} in stock</span>
+              <span className={`text-sm font-bold ${product.stock > 5 ? 'text-green-400' : 'text-amber-500'}`}>
+                {product.stock} in stock
+              </span>
             </div>
 
             <div className="text-3xl font-bold text-white mb-6">
@@ -111,21 +101,9 @@ const ProductDetails = () => {
               {product.description || "No description provided for this product."}
             </p>
 
-            <div className="mb-8">
-              <h3 className="text-sm font-semibold text-neutral-300 mb-3 uppercase tracking-wider">Highlights</h3>
-              <ul className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <li className="flex items-center gap-2 text-neutral-400 bg-neutral-900/50 p-3 rounded-xl border border-neutral-800/50">
-                  <div className="w-1.5 h-1.5 bg-indigo-500 rounded-full" />
-                  <span className="text-sm">Premium Quality</span>
-                </li>
-                <li className="flex items-center gap-2 text-neutral-400 bg-neutral-900/50 p-3 rounded-xl border border-neutral-800/50">
-                  <div className="w-1.5 h-1.5 bg-indigo-500 rounded-full" />
-                  <span className="text-sm">Fast Shipping</span>
-                </li>
-              </ul>
-            </div>
-
             <div className="flex flex-wrap items-center gap-6 mt-auto pt-8 border-t border-neutral-800">
+              
+              {/* Restored Plus/Minus Buttons */}
               <div className="flex items-center bg-neutral-900 border border-neutral-700 rounded-xl p-1 h-14">
                 <button 
                   onClick={() => setQuantity(Math.max(1, quantity - 1))}
@@ -154,11 +132,11 @@ const ProductDetails = () => {
               </motion.button>
             </div>
 
-            {/* Badges */}
+            {/* Feature Badges */}
             <div className="grid grid-cols-3 gap-4 mt-8 pt-8 border-t border-neutral-800 text-center">
               <div className="flex flex-col items-center gap-2 text-neutral-400">
                 <Truck size={24} className="text-indigo-400" />
-                <span className="text-xs">Delivery via Bykea/inDrive</span>
+                <span className="text-xs">Fast Delivery</span>
               </div>
               <div className="flex flex-col items-center gap-2 text-neutral-400">
                 <Shield size={24} className="text-indigo-400" />
@@ -166,7 +144,7 @@ const ProductDetails = () => {
               </div>
               <div className="flex flex-col items-center gap-2 text-neutral-400">
                 <RotateCcw size={24} className="text-indigo-400" />
-                <span className="text-xs">{product.return_time || "30-Day Returns"}</span>
+                <span className="text-xs">{product.return_time || "7-Day Returns"}</span>
               </div>
             </div>
 
