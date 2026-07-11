@@ -70,6 +70,13 @@ const Profile = () => {
                     </div>
                   </div>
                   
+                  {order.status === 'CANCELLED' && order.rejection_reason && (
+                    <div className="mb-6 p-4 bg-red-500/10 border border-red-500/20 rounded-xl text-red-300 text-sm">
+                      <strong className="text-red-400 block mb-1">Reason for Rejection:</strong>
+                      {order.rejection_reason}
+                    </div>
+                  )}
+
                   <div className="space-y-3 mb-6">
                     {order.items?.map(item => (
                       <div key={item.id} className="flex justify-between text-sm">
