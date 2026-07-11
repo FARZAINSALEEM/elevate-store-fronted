@@ -96,6 +96,13 @@ const Login = () => {
                       <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none"><Lock size={18} className="text-neutral-500"/></div>
                       <input required type="password" value={formData.password} onChange={(e) => setFormData({...formData, password: e.target.value})} className="w-full bg-neutral-900 border border-neutral-800 rounded-xl pl-11 pr-4 py-3.5 text-white focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all" placeholder="••••••••" />
                     </div>
+                    {isLogin && (
+                      <div className="flex justify-end mt-2">
+                        <Link to="/forgot-password" className="text-xs font-medium text-indigo-400 hover:text-indigo-300 transition-colors">
+                          Forgot Password?
+                        </Link>
+                      </div>
+                    )}
                   </div>
                   
                   <button disabled={isLoading} type="submit" className="w-full bg-white hover:bg-neutral-200 text-black py-4 rounded-xl font-bold transition-all mt-8 flex justify-center items-center gap-2">

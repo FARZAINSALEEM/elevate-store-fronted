@@ -7,13 +7,14 @@ import { CartContext, CartProvider } from './context/CartContext';
 // Pages
 import Home from './pages/Home';
 import Login from './pages/Login';
-import Profile from './pages/Profile'; // <--- NEW PROFILE PAGE
+import ForgotPassword from './pages/ForgotPassword'; // <--- NEW IMPORT
+import Profile from './pages/Profile';
 import ProductDetails from './pages/ProductDetails';
 import Cart from './pages/Cart';
 import Checkout from './pages/Checkout';
 import AdminLogin from './pages/AdminLogin';
 import AdminDashboard from './pages/AdminDashboard';
-import HelpDeskChat from './components/HelpDeskChat'; // <--- NEW IMPORT
+import HelpDeskChat from './components/HelpDeskChat';
 
 const Navbar = () => {
   const cartContext = React.useContext(CartContext);
@@ -50,6 +51,7 @@ const App = () => {
           <Routes>
             <Route path="/" element={<Home />} />
             <Route path="/login" element={<Login />} />
+            <Route path="/forgot-password" element={<ForgotPassword />} />
             <Route path="/profile" element={<Profile />} />
             <Route path="/product/:id" element={<ProductDetails />} />
             <Route path="/cart" element={<Cart />} />
