@@ -13,3 +13,4 @@ Media/Static files
 
 media/
 staticfiles/
+node_modules
