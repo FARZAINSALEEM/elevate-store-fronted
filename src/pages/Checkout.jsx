@@ -1,7 +1,7 @@
 import React, { useState, useContext, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { CheckCircle, AlertCircle, MapPin, Phone, CreditCard, Upload } from 'lucide-react';
+import { CheckCircle, AlertCircle, MapPin, CreditCard, Upload } from 'lucide-react';
 import { CartContext } from '../context/CartContext';
 import { AuthContext } from '../context/AuthContext';
 import api from '../services/api';
@@ -20,7 +20,6 @@ const Checkout = () => {
 
   useEffect(() => {
     if (!user) navigate('/login');
-    // Fetch dynamic store settings from backend
     api.get('/settings/').then(res => setSettings(res.data)).catch(err => console.error(err));
   }, [user, navigate]);
 
@@ -52,30 +51,39 @@ const Checkout = () => {
       
       setStatus({ loading: false, error: null, success: true });
       clearCart();
-      setTimeout(() => navigate('/profile'), 2000); // Redirect to Profile/Tracking
     } catch (err) {
-      setStatus({ loading: false, error: err.response?.data?.error || 'Failed to place order. Check stock.', success: false });
+      console.error(err.response?.data); // Log for debugging
+      setStatus({ 
+        loading: false, 
+        error: err.response?.data?.error || err.response?.data?.detail || 'Payment/Order failed. Please check your details and try again.', 
+        success: false 
+      });
     }
   };
 
   if (status.success) {
     return (
-      <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center p-4">
-        <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-neutral-900 border border-neutral-800 p-10 rounded-3xl text-center max-w-md w-full shadow-2xl">
-          <div className="w-20 h-20 bg-green-500/20 rounded-full flex items-center justify-center mx-auto mb-6">
-            <CheckCircle size={40} className="text-green-500" />
+      <div className="min-h-screen bg-[#0a0a0a] flex flex-col items-center justify-center p-4">
+        <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-neutral-900 border border-neutral-800 p-10 rounded-3xl text-center max-w-lg w-full shadow-2xl">
+          <div className="w-20 h-20 bg-amber-500/20 rounded-full flex items-center justify-center mx-auto mb-6">
+            <CheckCircle size={40} className="text-amber-500" />
           </div>
-          <h2 className="text-3xl font-bold text-white mb-2">Order Placed!</h2>
-          <p className="text-neutral-400 mb-6">Your order is now pending. You can track it in your profile.</p>
+          <h2 className="text-3xl font-bold text-white mb-4">Order Placed Successfully!</h2>
+          <p className="text-neutral-300 mb-2">Your order will be confirmed shortly after your payment is verified by our team.</p>
+          <p className="text-neutral-500 text-sm mb-8">You can track your order status and view confirmation details in your profile.</p>
+          
+          <button onClick={() => navigate('/profile')} className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3 px-8 rounded-xl transition-all shadow-[0_0_20px_rgba(99,102,241,0.3)]">
+            Go to My Profile
+          </button>
         </motion.div>
       </div>
     );
   }
 
+  // ... (The rest of the checkout render stays exactly the same) ...
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-white pt-24 pb-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-10">
-        
         <div>
           <h1 className="text-3xl font-bold mb-8">Checkout Details</h1>
           {status.error && (
