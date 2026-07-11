@@ -1,26 +1,4 @@
-import React, { useState, useEffect, useContext, useRef } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { useNavigate } from 'react-router-dom';
-import { 
-  LogOut, Plus, Trash2, Package, DollarSign, AlertTriangle, 
-  MessageCircle, Settings, ShoppingBag, X, Send, CheckCircle, 
-  Truck, Download, Search
-} from 'lucide-react';
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { AuthContext } from '../context/AuthContext';
-import api from '../services/api';
 
-const AdminDashboard = () => {
-  const { user, logout } = useContext(AuthContext);
-  const navigate = useNavigate();
-  
-  const [activeTab, setActiveTab] = useState('inventory');
-  
-  // Data States
-  const [products, setProducts] = useState([]);
-  const [orders, setOrders] = useState([]);
-  const [stats, setStats] = useState(null);
-  const [chats, setChats] = useState([]);
   const [storeSettings, setStoreSettings] = useState({ 
     jazzcash_number: '', easypaisa_number: '', support_email: '', support_phone: '' 
   });
