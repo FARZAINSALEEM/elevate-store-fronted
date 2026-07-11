@@ -77,7 +77,7 @@ const AdminDashboard = () => {
   const fetchChats = async () => {
     try {
       const chatRes = await api.get('/chat/admin/');
-      setChats(chatRes.data);
+      setChats(Array.isArray(chatRes.data) ? chatRes.data : []);
     } catch(err) {
       console.error("Chat polling error:", err);
     }
