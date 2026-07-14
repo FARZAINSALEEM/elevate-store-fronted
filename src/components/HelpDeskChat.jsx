@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useContext, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { MessageCircle, X, Send, User, Phone, Mail } from 'lucide-react';
+import { MessageCircle, X, Send, User, Phone, Mail, CheckCircle } from 'lucide-react';
 import api from '../services/api';
 import { AuthContext } from '../context/AuthContext';
 
@@ -9,6 +9,7 @@ const HelpDeskChat = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState([]);
   const [inputText, setInputText] = useState('');
+  const [isResolved, setIsResolved] = useState(false);
   
   // State to hold the dynamic store contact settings
   const [settings, setSettings] = useState({ 
@@ -45,6 +46,7 @@ const HelpDeskChat = () => {
     try {
       const res = await api.get('/chat/user/');
       setMessages(res.data.messages || []);
+      setIsResolved(res.data.is_resolved || false);
     } catch (err) { 
       console.error("Chat Fetch Error:", err);
     }
@@ -65,6 +67,11 @@ const HelpDeskChat = () => {
       alert("Failed to send message. Please check your connection.");
       setInputText(savedText); // Restore the text if it failed to send!
     }
+  };
+
+  const handleStartNewChat = () => {
+    setMessages([]);
+    setIsResolved(false);
   };
 
   // Do not show the floating widget for Admin users (they have a dedicated dashboard tab)
@@ -140,8 +147,8 @@ const HelpDeskChat = () => {
               <div ref={messagesEndRef} />
             </div>
 
-            {/* Input Form (Only for logged-in users) */}
-            {user && (
+            {/* Input Form / Resolved Status (Only for logged-in users) */}
+            {user && !isResolved && (
               <form onSubmit={handleSend} className="p-3 bg-neutral-900 border-t border-neutral-800 flex gap-2">
                 <input 
                   type="text" 
@@ -158,6 +165,20 @@ const HelpDeskChat = () => {
                   <Send size={18} className={inputText.trim() ? "translate-x-0.5 -translate-y-0.5 transition-transform" : ""} />
                 </button>
               </form>
+            )}
+
+            {user && isResolved && (
+              <div className="p-4 bg-neutral-900 border-t border-neutral-800 text-center flex flex-col items-center justify-center">
+                <p className="text-sm text-green-400 font-bold mb-2 flex items-center justify-center gap-2">
+                  <CheckCircle size={16}/> Ticket Resolved
+                </p>
+                <button 
+                  onClick={handleStartNewChat} 
+                  className="text-xs font-bold text-indigo-400 hover:text-indigo-300 transition-colors px-4 py-2 border border-indigo-500/30 rounded-lg hover:bg-indigo-500/10"
+                >
+                  Start New Conversation
+                </button>
+              </div>
             )}
           </motion.div>
         )}

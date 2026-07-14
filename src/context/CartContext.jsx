@@ -1,10 +1,13 @@
-import React, { createContext, useState, useEffect } from 'react';
+import React, { createContext, useState, useEffect, useContext } from 'react';
+import { AuthContext } from './AuthContext';
+import api from '../services/api';
 
 export const CartContext = createContext();
 
 export const CartProvider = ({ children }) => {
   const [cartItems, setCartItems] = useState([]);
   const [cartTotal, setCartTotal] = useState(0);
+  const { user } = useContext(AuthContext);
 
   useEffect(() => {
     const savedCart = localStorage.getItem('cart');
@@ -17,7 +20,17 @@ export const CartProvider = ({ children }) => {
     const total = cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
     setCartTotal(total);
     localStorage.setItem('cart', JSON.stringify(cartItems));
-  }, [cartItems]);
+
+    // Sync to backend for abandoned cart emails if user is logged in
+    if (user) {
+      // Debounce the API call by 2 seconds to prevent spamming
+      const syncTimer = setTimeout(() => {
+        api.post('/carts/sync/', { items: cartItems })
+           .catch(err => console.log('Cart sync error (safe to ignore if endpoint is still building):', err));
+      }, 2000);
+      return () => clearTimeout(syncTimer);
+    }
+  }, [cartItems, user]);
 
   const addToCart = (product, quantity = 1) => {
     setCartItems(prevItems => {

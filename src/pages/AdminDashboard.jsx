@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { 
   LogOut, Plus, Trash2, Package, DollarSign, AlertTriangle, 
   MessageCircle, Settings, ShoppingBag, X, Send, CheckCircle, 
-  Truck, Download, Search, UserCircle, Minus
+  Truck, Download, Search, UserCircle, Minus, Eraser, CheckSquare
 } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { AuthContext } from '../context/AuthContext';
@@ -29,7 +29,7 @@ const AdminDashboard = () => {
   const [showAddForm, setShowAddForm] = useState(false);
   const [rejectModal, setRejectModal] = useState({ show: false, orderId: null, reason: '' });
   const [newProduct, setNewProduct] = useState({ 
-    name: '', price: '', stock: '', description: '', image: null, 
+    name: '', price: '', stock: '', description: '', image: null, gallery_images: [],
     rating: 4.5, warranty: '1 Year Warranty', return_time: '7 Days Return' 
   });
   const [replyText, setReplyText] = useState({});
@@ -102,7 +102,6 @@ const AdminDashboard = () => {
     if (newStock < 0) return;
     try {
       await api.patch(`/products/${id}/`, { stock: newStock });
-      // Update UI instantly
       setProducts(products.map(p => p.id === id ? { ...p, stock: newStock } : p));
     } catch (error) {
       console.error("Error updating stock:", error);
@@ -121,7 +120,9 @@ const AdminDashboard = () => {
     
     const formData = new FormData();
     Object.keys(newProduct).forEach(key => {
-      if (newProduct[key] !== null && newProduct[key] !== '') {
+      if (key === 'gallery_images') {
+        Array.from(newProduct[key]).forEach(file => formData.append('uploaded_images', file));
+      } else if (newProduct[key] !== null && newProduct[key] !== '') {
         formData.append(key, newProduct[key]);
       }
     });
@@ -130,7 +131,7 @@ const AdminDashboard = () => {
       await api.post('/products/', formData, { 
         headers: { 'Content-Type': 'multipart/form-data' }
       });
-      setNewProduct({ name: '', price: '', stock: '', description: '', image: null, rating: 4.5, warranty: '1 Year Warranty', return_time: '7 Days Return' });
+      setNewProduct({ name: '', price: '', stock: '', description: '', image: null, gallery_images: [], rating: 4.5, warranty: '1 Year Warranty', return_time: '7 Days Return' });
       setShowAddForm(false);
       fetchData();
     } catch (error) {
@@ -172,10 +173,36 @@ const AdminDashboard = () => {
     try {
       await api.post('/chat/admin/', { ticket_id: ticketId, message: message });
       setReplyText({...replyText, [ticketId]: ''});
-      fetchChats(); // instantly refresh
+      fetchChats(); 
     } catch (err) {
       console.error(err);
       alert("Failed to send reply.");
+    }
+  };
+
+  const handleResolveTicket = async (ticketId) => {
+    if (window.confirm("Are you sure you want to close this ticket? The user will be notified via email.")) {
+      try {
+        await api.post('/chat/admin/', { ticket_id: ticketId, action: 'resolve' });
+        fetchChats();
+      } catch (err) {
+        console.error(err);
+        alert("Failed to resolve ticket.");
+      }
+    }
+  };
+
+  const triggerOrderCleanup = async () => {
+    if (window.confirm("Are you sure you want to wipe all CANCELLED orders older than 30 days? This will permanently delete them from the database.")) {
+       try {
+           // Calls the backend endpoint that runs the cleanup_orders script logic
+           await api.post('/admin/cleanup-orders/'); 
+           alert("Cleanup successful! Old cancelled orders have been removed.");
+           fetchData();
+       } catch (err) {
+           console.error(err);
+           alert("Failed to trigger cleanup script.");
+       }
     }
   };
 
@@ -201,7 +228,7 @@ const AdminDashboard = () => {
                   <X size={18}/>
                 </button>
               </div>
-              <p className="text-neutral-400 text-sm mb-4">Provide a reason for rejection. The customer will see this message in their profile.</p>
+              <p className="text-neutral-400 text-sm mb-4">Provide a reason for rejection. The customer will see this message in their profile and receive an email notification.</p>
               <textarea 
                 className="w-full bg-black border border-neutral-700 rounded-xl p-4 text-white focus:border-red-500 focus:outline-none mb-6 h-32 custom-scrollbar resize-none"
                 placeholder="e.g. Payment receipt is invalid, insufficient amount transferred, or item out of stock..."
@@ -291,7 +318,7 @@ const AdminDashboard = () => {
           </button>
           <button onClick={() => setActiveTab('chats')} className={`px-6 py-3.5 rounded-t-xl font-bold transition-all flex items-center gap-2 relative ${activeTab === 'chats' ? 'bg-blue-600 text-white' : 'bg-neutral-900 text-neutral-400 hover:bg-neutral-800'}`}>
             <MessageCircle size={18} /> Support Desk
-            {chats.length > 0 && <span className="absolute top-3 right-3 w-2.5 h-2.5 bg-red-500 rounded-full animate-pulse border-2 border-neutral-900"></span>}
+            {Array.isArray(chats) && chats.length > 0 && <span className="absolute top-3 right-3 w-2.5 h-2.5 bg-red-500 rounded-full animate-pulse border-2 border-neutral-900"></span>}
           </button>
           <button onClick={() => setActiveTab('settings')} className={`px-6 py-3.5 rounded-t-xl font-bold transition-all flex items-center gap-2 ${activeTab === 'settings' ? 'bg-neutral-200 text-black' : 'bg-neutral-900 text-neutral-400 hover:bg-neutral-800'}`}>
             <Settings size={18} /> Store Configuration
@@ -332,9 +359,13 @@ const AdminDashboard = () => {
                       </div>
                     </div>
                     
-                    <div className="md:col-span-2">
-                      <label className="block text-sm font-medium text-neutral-400 mb-1.5">Product Image</label>
-                      <input type="file" accept="image/*" className="w-full bg-neutral-900 border border-neutral-800 rounded-xl p-3 text-neutral-400 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-amber-600/20 file:text-amber-500 hover:file:bg-amber-600/30 transition-colors cursor-pointer" onChange={e => setNewProduct({...newProduct, image: e.target.files[0]})} />
+                    <div className="md:col-span-1">
+                      <label className="block text-sm font-medium text-neutral-400 mb-1.5">Primary Image (Thumbnail)</label>
+                      <input required type="file" accept="image/*" className="w-full bg-neutral-900 border border-neutral-800 rounded-xl p-3 text-neutral-400 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-amber-600/20 file:text-amber-500 hover:file:bg-amber-600/30 transition-colors cursor-pointer" onChange={e => setNewProduct({...newProduct, image: e.target.files[0]})} />
+                    </div>
+                    <div className="md:col-span-1">
+                      <label className="block text-sm font-medium text-neutral-400 mb-1.5">Gallery Images (Multiple Allowed)</label>
+                      <input type="file" multiple accept="image/*" className="w-full bg-neutral-900 border border-neutral-800 rounded-xl p-3 text-neutral-400 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-600/20 file:text-indigo-500 hover:file:bg-indigo-600/30 transition-colors cursor-pointer" onChange={e => setNewProduct({...newProduct, gallery_images: e.target.files})} />
                     </div>
                     
                     <div className="md:col-span-2">
@@ -400,7 +431,13 @@ const AdminDashboard = () => {
           {/* ORDERS TAB */}
           {activeTab === 'orders' && (
             <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="bg-neutral-900 border border-neutral-800 rounded-3xl p-6 md:p-8">
-              <h2 className="text-2xl font-bold mb-8 text-white">Customer Orders</h2>
+              <div className="flex justify-between items-center mb-8">
+                  <h2 className="text-2xl font-bold text-white">Customer Orders</h2>
+                  <button onClick={triggerOrderCleanup} className="bg-neutral-800 hover:bg-red-600/20 border border-neutral-700 hover:border-red-500/30 text-neutral-400 hover:text-red-400 px-4 py-2 rounded-xl text-sm font-bold flex items-center gap-2 transition-all">
+                      <Eraser size={16}/> Wipe Old Cancelled Orders
+                  </button>
+              </div>
+
               <div className="space-y-6">
                 {orders.length === 0 ? (
                   <div className="text-center py-12 bg-black rounded-2xl border border-neutral-800 text-neutral-500 font-medium">No orders received yet.</div>
@@ -503,23 +540,28 @@ const AdminDashboard = () => {
             <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="bg-neutral-900 border border-neutral-800 rounded-3xl p-6 md:p-8">
               <h2 className="text-2xl font-bold mb-8 text-white">Customer Support Desk</h2>
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {chats.length === 0 ? (
+                {Array.isArray(chats) && chats.length === 0 ? (
                   <div className="lg:col-span-2 text-center py-16 bg-black rounded-2xl border border-neutral-800 text-neutral-500">
                     <MessageCircle size={48} className="mx-auto mb-4 opacity-20" />
                     <p className="font-medium">No active support tickets from customers.</p>
                   </div>
-                ) : chats.map(chat => (
+                ) : chats?.map(chat => (
                   <div key={chat.ticket_id} className="bg-black border border-neutral-800 rounded-2xl overflow-hidden flex flex-col h-[450px] shadow-lg">
                     <div className="bg-blue-600/10 p-5 border-b border-blue-900/30 flex justify-between items-center">
                       <div>
                         <h3 className="font-bold text-blue-400 flex items-center gap-2"><UserCircle size={16}/> Customer: {chat.user}</h3>
                         <p className="text-xs text-neutral-500 mt-1">Ticket #{chat.ticket_id} • Active</p>
                       </div>
-                      <span className="text-xs bg-black/50 text-neutral-400 px-3 py-1 rounded-full border border-neutral-800">{chat.last_updated}</span>
+                      <div className="flex flex-col items-end gap-2">
+                          <span className="text-xs bg-black/50 text-neutral-400 px-3 py-1 rounded-full border border-neutral-800">{chat.last_updated}</span>
+                          <button onClick={() => handleResolveTicket(chat.ticket_id)} className="bg-green-600 hover:bg-green-500 text-white text-xs font-bold px-3 py-1.5 rounded-lg flex items-center gap-1 transition-colors shadow-md">
+                              <CheckSquare size={14}/> Mark Resolved
+                          </button>
+                      </div>
                     </div>
                     
                     <div className="flex-1 p-5 overflow-y-auto custom-scrollbar space-y-4 bg-neutral-950">
-                      {chat.messages.map((m, i) => (
+                      {chat.messages?.map((m, i) => (
                         <div key={i} className={`flex ${m.is_admin ? 'justify-end' : 'justify-start'}`}>
                            <div className={`max-w-[85%] rounded-2xl p-3.5 text-sm shadow-sm ${m.is_admin ? 'bg-blue-600 text-white rounded-br-sm' : 'bg-neutral-800 border border-neutral-700 text-neutral-100 rounded-bl-sm'}`}>
                              {m.text}
