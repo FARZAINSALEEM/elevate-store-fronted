@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, ShoppingCart, Star, Plus, Minus, Truck, Shield, RotateCcw, AlertCircle, Heart, UserCircle, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ArrowLeft, ShoppingCart, Star, Plus, Minus, Truck, Shield, RotateCcw, AlertCircle, Heart, UserCircle, ChevronLeft, ChevronRight, CheckCircle, Send, Loader2 } from 'lucide-react';
 import { CartContext } from '../context/CartContext';
 import { AuthContext } from '../context/AuthContext';
 import * as productService from '../services/productService';
@@ -23,6 +23,10 @@ const ProductDetails = () => {
   const [isWished, setIsWished] = useState(false);
   const [allImages, setAllImages] = useState([]);
 
+  // Review System State
+  const [reviewData, setReviewData] = useState({ rating: 5, comment: '' });
+  const [reviewStatus, setReviewStatus] = useState({ loading: false, error: null, success: false });
+
   const getImageUrl = (imagePath) => {
     if (!imagePath) return null;
     if (imagePath.startsWith('http')) return imagePath;
@@ -30,34 +34,35 @@ const ProductDetails = () => {
     return `${baseUrl}${imagePath.startsWith('/') ? '' : '/'}${imagePath}`;
   };
 
-  useEffect(() => {
-    const fetchProductAndWishlist = async () => {
-      try {
-        const prodData = await productService.getProductById(id);
-        setProduct(prodData);
-        
-        // Combine primary image and gallery images for the slider
-        const images = [];
-        if (prodData.image) images.push(prodData.image);
-        if (prodData.gallery_images) {
-            prodData.gallery_images.forEach(imgObj => images.push(imgObj.image));
-        }
-        setAllImages(images);
-
-        // Check if item is in user's wishlist
-        if (user) {
-           const wishRes = await api.get('/wishlists/');
-           if (wishRes.data.length > 0) {
-               const ids = wishRes.data[0].products.map(p => p.id);
-               setIsWished(ids.includes(parseInt(id)));
-           }
-        }
-      } catch (err) {
-        setError('Failed to fetch product details.');
-      } finally {
-        setLoading(false);
+  const fetchProductAndWishlist = async () => {
+    try {
+      const prodData = await productService.getProductById(id);
+      setProduct(prodData);
+      
+      // Combine primary image and gallery images for the slider
+      const images = [];
+      if (prodData.image) images.push(prodData.image);
+      if (prodData.gallery_images) {
+          prodData.gallery_images.forEach(imgObj => images.push(imgObj.image));
       }
-    };
+      setAllImages(images);
+
+      // Check if item is in user's wishlist
+      if (user) {
+         const wishRes = await api.get('/wishlists/');
+         if (wishRes.data.length > 0) {
+             const ids = wishRes.data[0].products.map(p => p.id);
+             setIsWished(ids.includes(parseInt(id)));
+         }
+      }
+    } catch (err) {
+      setError('Failed to fetch product details.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
     fetchProductAndWishlist();
   }, [id, user]);
 
@@ -78,6 +83,29 @@ const ProductDetails = () => {
     } catch (err) {
       setIsWished(previousState); // Revert on failure
       console.error("Wishlist action failed");
+    }
+  };
+
+  const handleReviewSubmit = async (e) => {
+    e.preventDefault();
+    if (!reviewData.comment.trim()) return;
+    
+    setReviewStatus({ loading: true, error: null, success: false });
+    try {
+      await api.post('/reviews/', {
+        product: product.id,
+        rating: reviewData.rating,
+        comment: reviewData.comment
+      });
+      setReviewStatus({ loading: false, error: null, success: true });
+      setReviewData({ rating: 5, comment: '' });
+      fetchProductAndWishlist(); // Refresh to show new review
+    } catch (err) {
+      setReviewStatus({ 
+        loading: false, 
+        error: err.response?.data?.error || err.response?.data?.detail || "You must purchase and receive this item before reviewing.", 
+        success: false 
+      });
     }
   };
 
@@ -183,9 +211,9 @@ const ProductDetails = () => {
                 <Star size={16} className="text-yellow-500 fill-yellow-500" />
                 <span className="font-bold text-yellow-500">{product.rating}</span>
               </div>
-              <span className="text-neutral-500 font-medium text-sm hover:text-indigo-400 cursor-pointer transition-colors">
+              <a href="#reviews" className="text-neutral-500 font-medium text-sm hover:text-indigo-400 cursor-pointer transition-colors">
                   {product.reviews?.length || 0} Verified Reviews
-              </span>
+              </a>
               <span className="text-neutral-700">|</span>
               <span className={`text-sm font-black uppercase tracking-wider ${product.stock > 5 ? 'text-green-500' : product.stock > 0 ? 'text-orange-500' : 'text-red-500'}`}>
                 {product.stock > 5 ? 'In Stock' : product.stock > 0 ? `Only ${product.stock} Left!` : 'Sold Out'}
@@ -260,9 +288,71 @@ const ProductDetails = () => {
         </div>
 
         {/* VERIFIED REVIEWS SECTION */}
-        <div className="mt-20 pt-16 border-t border-neutral-900">
-            <h2 className="text-3xl font-black mb-10 text-center tracking-tight">Customer Reviews</h2>
+        <div id="reviews" className="mt-20 pt-16 border-t border-neutral-900">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-6">
+                <h2 className="text-3xl font-black tracking-tight">Customer Reviews</h2>
+            </div>
+
+            {/* Review Submission Form */}
+            {user ? (
+                <div className="bg-neutral-900/50 p-6 sm:p-8 rounded-3xl border border-neutral-800 mb-10">
+                    <h3 className="text-xl font-bold mb-4">Write a Review</h3>
+                    {reviewStatus.error && (
+                        <div className="mb-4 p-4 bg-red-500/10 border border-red-500/30 rounded-xl text-red-400 text-sm flex items-start gap-2">
+                            <AlertCircle size={18} className="mt-0.5 flex-shrink-0" /> 
+                            <span>{reviewStatus.error}</span>
+                        </div>
+                    )}
+                    {reviewStatus.success && (
+                        <div className="mb-4 p-4 bg-green-500/10 border border-green-500/30 rounded-xl text-green-400 text-sm flex items-start gap-2">
+                            <CheckCircle size={18} className="mt-0.5 flex-shrink-0" /> 
+                            <span>Review submitted successfully!</span>
+                        </div>
+                    )}
+                    <form onSubmit={handleReviewSubmit} className="space-y-4">
+                        <div>
+                            <label className="block text-sm font-medium text-neutral-400 mb-2">Rating</label>
+                            <div className="flex gap-2">
+                                {[1, 2, 3, 4, 5].map((num) => (
+                                    <button 
+                                        type="button"
+                                        key={num}
+                                        onClick={() => setReviewData({...reviewData, rating: num})}
+                                        className="focus:outline-none transition-transform hover:scale-110"
+                                    >
+                                        <Star size={28} className={num <= reviewData.rating ? "text-yellow-500 fill-yellow-500" : "text-neutral-700"} />
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-neutral-400 mb-2">Your Experience</label>
+                            <textarea 
+                                required
+                                value={reviewData.comment}
+                                onChange={(e) => setReviewData({...reviewData, comment: e.target.value})}
+                                placeholder="What did you like or dislike about this product?"
+                                className="w-full bg-black border border-neutral-800 rounded-xl p-4 text-white focus:outline-none focus:border-indigo-500 h-28 custom-scrollbar resize-none"
+                            />
+                        </div>
+                        <button 
+                            disabled={reviewStatus.loading || !reviewData.comment.trim()} 
+                            type="submit" 
+                            className="bg-indigo-600 hover:bg-indigo-500 disabled:bg-neutral-800 disabled:text-neutral-500 text-white font-bold py-3 px-8 rounded-xl transition-all shadow-md flex items-center gap-2"
+                        >
+                            {reviewStatus.loading ? <Loader2 size={18} className="animate-spin" /> : <Send size={18} />}
+                            Submit Review
+                        </button>
+                    </form>
+                </div>
+            ) : (
+                <div className="bg-neutral-900/30 p-6 rounded-2xl border border-neutral-800 mb-10 flex items-center justify-between">
+                    <p className="text-neutral-400">Please log in to leave a review for this product.</p>
+                    <Link to="/login" className="bg-white hover:bg-neutral-200 text-black px-6 py-2 rounded-xl font-bold transition-colors">Sign In</Link>
+                </div>
+            )}
             
+            {/* Review List */}
             {product.reviews && product.reviews.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {product.reviews.map(review => (

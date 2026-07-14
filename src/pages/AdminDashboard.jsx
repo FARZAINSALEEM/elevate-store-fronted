@@ -4,7 +4,8 @@ import { useNavigate } from 'react-router-dom';
 import { 
   LogOut, Plus, Trash2, Package, DollarSign, AlertTriangle, 
   MessageCircle, Settings, ShoppingBag, X, Send, CheckCircle, 
-  Truck, Download, Search, UserCircle, Minus, Eraser, CheckSquare
+  Truck, Download, Search, UserCircle, Minus, Eraser, CheckSquare,
+  Mail, FileText, Users, Loader2
 } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { AuthContext } from '../context/AuthContext';
@@ -34,6 +35,11 @@ const AdminDashboard = () => {
   });
   const [replyText, setReplyText] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  // New Premium Feature States
+  const [cleanupDays, setCleanupDays] = useState(30);
+  const [marketingData, setMarketingData] = useState({ category: 'ALL', subject: '', body: '' });
+  const [isSendingEmails, setIsSendingEmails] = useState(false);
 
   const getImageUrl = (imagePath) => {
     if (!imagePath) return null;
@@ -48,7 +54,7 @@ const AdminDashboard = () => {
       return;
     }
     fetchData();
-    const interval = setInterval(fetchChats, 5000); // Poll chats every 5 seconds
+    const interval = setInterval(fetchChats, 5000);
     return () => clearInterval(interval);
   }, [user, navigate]);
 
@@ -193,16 +199,47 @@ const AdminDashboard = () => {
   };
 
   const triggerOrderCleanup = async () => {
-    if (window.confirm("Are you sure you want to wipe all CANCELLED orders older than 30 days? This will permanently delete them from the database.")) {
+    if (window.confirm(`Are you sure you want to wipe all CANCELLED orders older than ${cleanupDays} days? This will permanently delete them.`)) {
        try {
-           // Calls the backend endpoint that runs the cleanup_orders script logic
-           await api.post('/admin/cleanup-orders/'); 
+           await api.post('/admin/cleanup-orders/', { days: parseInt(cleanupDays) }); 
            alert("Cleanup successful! Old cancelled orders have been removed.");
            fetchData();
        } catch (err) {
            console.error(err);
            alert("Failed to trigger cleanup script.");
        }
+    }
+  };
+
+  const handleSendBulkEmail = async (e) => {
+    e.preventDefault();
+    if (!marketingData.subject || !marketingData.body) return alert("Subject and body are required.");
+    setIsSendingEmails(true);
+    try {
+      await api.post('/admin/bulk-email/', marketingData);
+      alert("Marketing emails queued successfully!");
+      setMarketingData({ category: 'ALL', subject: '', body: '' });
+    } catch (error) {
+      alert("Failed to send bulk emails.");
+      console.error(error);
+    } finally {
+      setIsSendingEmails(false);
+    }
+  };
+
+  const downloadReport = async (type) => {
+    try {
+      const response = await api.get(`/admin/reports/${type}/`, { responseType: 'blob' });
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `${type}_report.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      link.parentNode.removeChild(link);
+    } catch (err) {
+      console.error(err);
+      alert(`Failed to download ${type} report.`);
     }
   };
 
@@ -252,9 +289,17 @@ const AdminDashboard = () => {
             <h1 className="text-3xl sm:text-4xl font-black text-white tracking-tight">Admin Portal</h1>
             <p className="text-amber-500/80 font-medium mt-1">Welcome back, {user?.username} (Superuser)</p>
           </div>
-          <button onClick={() => logout()} className="flex items-center gap-2 bg-red-600/10 text-red-500 border border-red-500/20 hover:bg-red-600/20 px-5 py-3 rounded-xl transition-all font-bold">
-            <LogOut size={18} /> Exit Portal
-          </button>
+          <div className="flex gap-3 flex-wrap">
+            <button onClick={() => downloadReport('sales')} className="flex items-center gap-2 bg-indigo-600/10 text-indigo-400 border border-indigo-500/20 hover:bg-indigo-600/20 px-4 py-2.5 rounded-xl transition-all font-bold text-sm">
+              <FileText size={16} /> Sales Report
+            </button>
+            <button onClick={() => downloadReport('stock')} className="flex items-center gap-2 bg-emerald-600/10 text-emerald-400 border border-emerald-500/20 hover:bg-emerald-600/20 px-4 py-2.5 rounded-xl transition-all font-bold text-sm">
+              <Package size={16} /> Stock Report
+            </button>
+            <button onClick={() => logout()} className="flex items-center gap-2 bg-red-600/10 text-red-500 border border-red-500/20 hover:bg-red-600/20 px-5 py-2.5 rounded-xl transition-all font-bold text-sm">
+              <LogOut size={16} /> Exit
+            </button>
+          </div>
         </div>
 
         {/* Stats Row & Area Chart */}
@@ -320,8 +365,11 @@ const AdminDashboard = () => {
             <MessageCircle size={18} /> Support Desk
             {Array.isArray(chats) && chats.length > 0 && <span className="absolute top-3 right-3 w-2.5 h-2.5 bg-red-500 rounded-full animate-pulse border-2 border-neutral-900"></span>}
           </button>
+          <button onClick={() => setActiveTab('marketing')} className={`px-6 py-3.5 rounded-t-xl font-bold transition-all flex items-center gap-2 ${activeTab === 'marketing' ? 'bg-emerald-600 text-white' : 'bg-neutral-900 text-neutral-400 hover:bg-neutral-800'}`}>
+            <Mail size={18} /> Campaigns
+          </button>
           <button onClick={() => setActiveTab('settings')} className={`px-6 py-3.5 rounded-t-xl font-bold transition-all flex items-center gap-2 ${activeTab === 'settings' ? 'bg-neutral-200 text-black' : 'bg-neutral-900 text-neutral-400 hover:bg-neutral-800'}`}>
-            <Settings size={18} /> Store Configuration
+            <Settings size={18} /> Configuration
           </button>
         </div>
 
@@ -431,11 +479,21 @@ const AdminDashboard = () => {
           {/* ORDERS TAB */}
           {activeTab === 'orders' && (
             <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="bg-neutral-900 border border-neutral-800 rounded-3xl p-6 md:p-8">
-              <div className="flex justify-between items-center mb-8">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
                   <h2 className="text-2xl font-bold text-white">Customer Orders</h2>
-                  <button onClick={triggerOrderCleanup} className="bg-neutral-800 hover:bg-red-600/20 border border-neutral-700 hover:border-red-500/30 text-neutral-400 hover:text-red-400 px-4 py-2 rounded-xl text-sm font-bold flex items-center gap-2 transition-all">
-                      <Eraser size={16}/> Wipe Old Cancelled Orders
-                  </button>
+                  <div className="flex items-center gap-2 bg-black border border-neutral-800 p-1.5 rounded-2xl">
+                    <input 
+                      type="number" 
+                      value={cleanupDays} 
+                      onChange={(e) => setCleanupDays(e.target.value)} 
+                      min="1"
+                      className="w-16 bg-neutral-900 rounded-xl p-2 text-sm text-center text-white focus:outline-none focus:ring-1 focus:ring-red-500" 
+                    />
+                    <span className="text-sm text-neutral-400 font-medium px-1">days</span>
+                    <button onClick={triggerOrderCleanup} className="bg-neutral-800 hover:bg-red-600/20 border border-transparent hover:border-red-500/30 text-neutral-400 hover:text-red-400 px-4 py-2 rounded-xl text-sm font-bold flex items-center gap-2 transition-all">
+                        <Eraser size={16}/> Wipe Cancelled
+                    </button>
+                  </div>
               </div>
 
               <div className="space-y-6">
@@ -473,20 +531,21 @@ const AdminDashboard = () => {
                             {order.payment_method === 'COD' ? 'Cash on Delivery' : 'Online Transfer'}
                           </span>
                           
-                          {/* Payment Verification Flow */}
-                          {order.payment_method === 'ONLINE' && order.payment_screenshot && (
+                          {/* Payment Verification / Approval Flow (Updated for both COD and Online) */}
+                          {order.status === 'PENDING' && !order.payment_approved && (
                               <div className="mt-4 pt-4 border-t border-neutral-700/50">
-                                  <p className="text-neutral-400 mb-2 text-xs font-bold uppercase">Customer Payment Proof:</p>
-                                  <a href={getImageUrl(order.payment_screenshot)} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 text-blue-400 bg-blue-500/10 hover:bg-blue-500/20 px-4 py-2 rounded-lg text-xs font-bold transition-colors">
-                                      <Download size={14}/> View Screenshot
-                                  </a>
-                                  
-                                  {order.status === 'PENDING' && !order.payment_approved && (
-                                      <div className="flex gap-2 mt-3">
-                                          <button onClick={() => handleUpdateOrderStatus(order.id, 'PROCESSING')} className="flex-1 px-3 py-2 bg-green-600 hover:bg-green-500 text-white rounded-lg text-xs font-bold transition shadow-md flex items-center justify-center gap-1"><CheckCircle size={14}/> Approve</button>
-                                          <button onClick={() => setRejectModal({ show: true, orderId: order.id, reason: '' })} className="flex-1 px-3 py-2 bg-red-600/10 hover:bg-red-600 border border-red-500/30 text-red-500 hover:text-white rounded-lg text-xs font-bold transition shadow-md flex items-center justify-center gap-1"><X size={14}/> Reject</button>
-                                      </div>
+                                  {order.payment_method === 'ONLINE' && order.payment_screenshot && (
+                                    <div className="mb-4">
+                                      <p className="text-neutral-400 mb-2 text-xs font-bold uppercase">Customer Payment Proof:</p>
+                                      <a href={getImageUrl(order.payment_screenshot)} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 text-blue-400 bg-blue-500/10 hover:bg-blue-500/20 px-4 py-2 rounded-lg text-xs font-bold transition-colors">
+                                          <Download size={14}/> View Screenshot
+                                      </a>
+                                    </div>
                                   )}
+                                  <div className="flex gap-2">
+                                      <button onClick={() => handleUpdateOrderStatus(order.id, 'PROCESSING')} className="flex-1 px-3 py-2 bg-green-600 hover:bg-green-500 text-white rounded-lg text-xs font-bold transition shadow-md flex items-center justify-center gap-1"><CheckCircle size={14}/> Approve</button>
+                                      <button onClick={() => setRejectModal({ show: true, orderId: order.id, reason: '' })} className="flex-1 px-3 py-2 bg-red-600/10 hover:bg-red-600 border border-red-500/30 text-red-500 hover:text-white rounded-lg text-xs font-bold transition shadow-md flex items-center justify-center gap-1"><X size={14}/> Reject</button>
+                                  </div>
                               </div>
                           )}
                         </div>
@@ -590,6 +649,56 @@ const AdminDashboard = () => {
                   </div>
                 ))}
               </div>
+            </motion.div>
+          )}
+
+          {/* MARKETING & EMAIL CAMPAIGNS TAB */}
+          {activeTab === 'marketing' && (
+            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="bg-neutral-900 border border-neutral-800 rounded-3xl p-6 md:p-8 max-w-3xl">
+              <h2 className="text-2xl font-bold mb-2 text-white flex items-center gap-3"><Mail className="text-emerald-400"/> Email Campaigns</h2>
+              <p className="text-neutral-400 mb-8">Send targeted marketing emails, updates, and promotions directly to your customer base.</p>
+              
+              <form onSubmit={handleSendBulkEmail} className="space-y-6">
+                <div className="bg-black p-6 rounded-2xl border border-neutral-800">
+                  <label className="block text-sm font-medium text-neutral-400 mb-2">Target Audience</label>
+                  <select 
+                    value={marketingData.category}
+                    onChange={(e) => setMarketingData({...marketingData, category: e.target.value})}
+                    className="w-full bg-neutral-900 border border-neutral-700 rounded-xl p-3.5 text-white focus:outline-none focus:border-emerald-500 transition-colors"
+                  >
+                    <option value="ALL">All Registered Users</option>
+                    <option value="NEWSLETTER">Newsletter Subscribers</option>
+                    <option value="VIP">VIP Customers (High Spenders)</option>
+                    <option value="REGULAR">Regular Customers</option>
+                  </select>
+                </div>
+
+                <div className="bg-black p-6 rounded-2xl border border-neutral-800">
+                  <label className="block text-sm font-medium text-neutral-400 mb-2">Email Subject</label>
+                  <input 
+                    required 
+                    type="text" 
+                    placeholder="e.g., Big Summer Sale Starts Now!"
+                    value={marketingData.subject} 
+                    onChange={e => setMarketingData({...marketingData, subject: e.target.value})} 
+                    className="w-full bg-neutral-900 border border-neutral-700 rounded-xl p-3.5 text-white focus:outline-none focus:border-emerald-500 transition-colors mb-6" 
+                  />
+
+                  <label className="block text-sm font-medium text-neutral-400 mb-2">Email Body (HTML Supported)</label>
+                  <textarea 
+                    required 
+                    placeholder="<h2>Hello!</h2><p>Check out our latest products...</p>"
+                    value={marketingData.body} 
+                    onChange={e => setMarketingData({...marketingData, body: e.target.value})} 
+                    className="w-full bg-neutral-900 border border-neutral-700 rounded-xl p-4 text-white focus:outline-none focus:border-emerald-500 transition-colors h-48 custom-scrollbar resize-none font-mono text-sm" 
+                  />
+                  <p className="text-xs text-neutral-500 mt-2">You can use standard HTML tags for layout and styling.</p>
+                </div>
+
+                <button disabled={isSendingEmails} type="submit" className="w-full bg-emerald-600 hover:bg-emerald-500 disabled:bg-neutral-800 disabled:text-neutral-500 text-white font-bold py-4 rounded-xl transition-all shadow-[0_0_20px_rgba(16,185,129,0.3)] text-lg flex justify-center items-center gap-2 mt-4">
+                  {isSendingEmails ? <><Loader2 size={20} className="animate-spin" /> Sending Campaign...</> : <><Send size={20}/> Launch Email Campaign</>}
+                </button>
+              </form>
             </motion.div>
           )}
 
