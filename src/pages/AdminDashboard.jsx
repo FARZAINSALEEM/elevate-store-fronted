@@ -5,7 +5,7 @@ import {
   LogOut, Plus, Trash2, Package, DollarSign, AlertTriangle, 
   MessageCircle, Settings, ShoppingBag, X, Send, CheckCircle, 
   Truck, Download, Search, UserCircle, Minus, Eraser, CheckSquare,
-  Mail, FileText, Users, Loader2
+  Mail, FileText, Users, Loader2, Star
 } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { AuthContext } from '../context/AuthContext';
@@ -22,6 +22,7 @@ const AdminDashboard = () => {
   const [orders, setOrders] = useState([]);
   const [stats, setStats] = useState(null);
   const [chats, setChats] = useState([]);
+  const [reviews, setReviews] = useState([]);
   const [storeSettings, setStoreSettings] = useState({ 
     jazzcash_number: '', easypaisa_number: '', support_email: '', support_phone: '' 
   });
@@ -60,16 +61,18 @@ const AdminDashboard = () => {
 
   const fetchData = async () => {
     try {
-      const [productsRes, statsRes, ordersRes, settingsRes] = await Promise.all([
+      const [productsRes, statsRes, ordersRes, settingsRes, reviewsRes] = await Promise.all([
         api.get('/products/'),
         api.get('/admin/dashboard/'),
         api.get('/orders/'),
-        api.get('/settings/')
+        api.get('/settings/'),
+        api.get('/reviews/')
       ]);
       setProducts(productsRes.data);
       setStats(statsRes.data);
       setOrders(ordersRes.data);
       setStoreSettings(settingsRes.data);
+      setReviews(reviewsRes.data);
       fetchChats();
     } catch (error) {
       console.error("Error fetching dashboard data:", error);
@@ -155,6 +158,17 @@ const AdminDashboard = () => {
         fetchData();
       } catch (err) {
         alert("Failed to delete product.");
+      }
+    }
+  };
+
+  const handleDeleteReview = async (id) => {
+    if (window.confirm("Are you sure you want to delete this review permanently?")) {
+      try {
+        await api.delete(`/reviews/${id}/`);
+        setReviews(reviews.filter(r => r.id !== id));
+      } catch (err) {
+        alert("Failed to delete review.");
       }
     }
   };
@@ -365,6 +379,9 @@ const AdminDashboard = () => {
             <MessageCircle size={18} /> Support Desk
             {Array.isArray(chats) && chats.length > 0 && <span className="absolute top-3 right-3 w-2.5 h-2.5 bg-red-500 rounded-full animate-pulse border-2 border-neutral-900"></span>}
           </button>
+          <button onClick={() => setActiveTab('reviews')} className={`px-6 py-3.5 rounded-t-xl font-bold transition-all flex items-center gap-2 ${activeTab === 'reviews' ? 'bg-yellow-600 text-white' : 'bg-neutral-900 text-neutral-400 hover:bg-neutral-800'}`}>
+            <Star size={18} /> Manage Reviews
+          </button>
           <button onClick={() => setActiveTab('marketing')} className={`px-6 py-3.5 rounded-t-xl font-bold transition-all flex items-center gap-2 ${activeTab === 'marketing' ? 'bg-emerald-600 text-white' : 'bg-neutral-900 text-neutral-400 hover:bg-neutral-800'}`}>
             <Mail size={18} /> Campaigns
           </button>
@@ -531,7 +548,7 @@ const AdminDashboard = () => {
                             {order.payment_method === 'COD' ? 'Cash on Delivery' : 'Online Transfer'}
                           </span>
                           
-                          {/* Payment Verification / Approval Flow (Updated for both COD and Online) */}
+                          {/* Payment Verification / Approval Flow */}
                           {order.status === 'PENDING' && !order.payment_approved && (
                               <div className="mt-4 pt-4 border-t border-neutral-700/50">
                                   {order.payment_method === 'ONLINE' && order.payment_screenshot && (
@@ -648,6 +665,42 @@ const AdminDashboard = () => {
                     </div>
                   </div>
                 ))}
+              </div>
+            </motion.div>
+          )}
+
+          {/* REVIEWS TAB (NEW) */}
+          {activeTab === 'reviews' && (
+            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="bg-neutral-900 border border-neutral-800 rounded-3xl p-6 md:p-8">
+              <h2 className="text-2xl font-bold text-white mb-8 flex items-center gap-3"><Star className="text-yellow-500" /> Manage Product Reviews</h2>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {reviews.length === 0 ? (
+                  <div className="col-span-full text-center py-12 bg-black rounded-2xl border border-neutral-800 text-neutral-500 font-medium">No reviews have been submitted yet.</div>
+                ) : reviews.map(review => {
+                  const reviewedProduct = products.find(p => p.id === review.product);
+                  return (
+                    <div key={review.id} className="bg-black border border-neutral-800 rounded-2xl p-6 relative flex flex-col shadow-lg">
+                      <button onClick={() => handleDeleteReview(review.id)} className="absolute top-4 right-4 text-red-500/50 hover:text-red-500 p-2 hover:bg-red-500/10 rounded-lg transition-colors">
+                        <Trash2 size={18} />
+                      </button>
+                      
+                      <div className="flex items-center gap-2 mb-3">
+                        <div className="flex items-center text-yellow-500 bg-yellow-500/10 px-2 py-1 rounded text-xs font-bold border border-yellow-500/20">
+                           <Star size={12} className="fill-yellow-500 mr-1" /> {review.rating} / 5
+                        </div>
+                        <span className="text-xs text-neutral-500 font-bold uppercase tracking-wider">{review.user_name}</span>
+                      </div>
+                      
+                      <p className="text-neutral-300 text-sm mb-4 italic flex-1">"{review.comment}"</p>
+                      
+                      <div className="mt-auto pt-4 border-t border-neutral-800/80">
+                        <p className="text-xs text-neutral-500 font-medium line-clamp-1">Product: {reviewedProduct?.name || `ID ${review.product}`}</p>
+                        <p className="text-[10px] text-neutral-600 mt-1">{new Date(review.created_at).toLocaleString()}</p>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </motion.div>
           )}
