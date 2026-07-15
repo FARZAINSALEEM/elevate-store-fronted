@@ -192,8 +192,8 @@ const Home = () => {
 
   /* ─── Trust badges data ─── */
   const trustBadges = [
-    { icon: <Truck size={28} />, title: 'Free Delivery', desc: 'On orders above Rs. 2000' },
-    { icon: <Shield size={28} />, title: '1 Year Warranty', desc: 'Guaranteed quality' },
+    { icon: <Truck size={28} />, title: 'Delivered right to your doorstep', desc: 'Partnered with top couriers' },
+    { icon: <Shield size={28} />, title: 'Safe & encrypted payments', desc: '100% secure checkout' },
     { icon: <Zap size={28} />, title: 'Fast Shipping', desc: 'Delivered in 2-3 days' },
     { icon: <Award size={28} />, title: 'Top Rated', desc: '4.8★ average reviews' },
   ];
